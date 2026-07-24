@@ -1,0 +1,69 @@
+name: tapline
+description: >
+  Tapline: an infrastructure-network puzzle game. Tap the fewest nodes
+  necessary to keep a network of tanks, gauges, and signal towers
+  supplied before decay wins.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management (Riverpod is the project default — see Master
+  # Context). No providers exist yet in Phase 0; ProviderScope is
+  # wired up in main.dart so the pattern is ready for Phase 1+.
+  flutter_riverpod: ^3.3.2
+
+  # Type system: JetBrains Mono + Overpass. Fetched + cached at
+  # runtime by default — see the "Fonts" note in README.md for how to
+  # switch to a fully offline, asset-bundled build later.
+  google_fonts: ^6.2.1
+
+  # Phase 3: local-only persistence for coin balance and per-slot
+  # progress (Master Context: "local/on-device storage only — no
+  # backend, no network sync"). Version pinned conservatively since
+  # this couldn't be resolved against a real pub.dev in the sandbox
+  # this was written in — see README.md's Phase 3 section. If
+  # `flutter pub get` complains about this exact constraint, loosening
+  # it to whatever's current is a one-line fix, not a design issue.
+  shared_preferences: ^2.3.0
+
+  # Win-screen celebration burst on a 3-star clear — see
+  # outcome_dialog.dart / each gameplay screen's ConfettiController.
+  confetti: ^0.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+  # Plain package:test (not flutter_test) for lib/engine/'s test
+  # suite — the whole point of that folder is zero Flutter dependency,
+  # runnable with `dart test test/engine` alone, no widget harness.
+  test: ^1.31.0
+
+flutter:
+  uses-material-design: true
+
+  # Phase 2: curated level JSON + manifest.json (see
+  # lib/data/level_loader.dart and tool/generate_levels.dart).
+  # Flutter's asset system doesn't glob subfolders from a parent
+  # entry, so each tier folder per track is listed explicitly —
+  # tool/generate_levels.dart's folder layout is fixed for exactly
+  # this reason (adding a track/tier means adding a line here, not
+  # restructuring existing ones).
+  assets:
+    - assets/levels/manifest.json
+    - assets/levels/classic/small/
+    - assets/levels/classic/medium/
+    - assets/levels/classic/large/
+    - assets/levels/capacity/small/
+    - assets/levels/capacity/medium/
+    - assets/levels/capacity/large/
+    - assets/levels/signal/small/
+    - assets/levels/signal/medium/
+    - assets/levels/signal/large/

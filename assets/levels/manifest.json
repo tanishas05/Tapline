@@ -1,0 +1,47 @@
+{
+  "classic": [
+    "levels/classic/small/classic_small_001.json",
+    "levels/classic/small/classic_small_002.json",
+    "levels/classic/small/classic_small_003.json",
+    "levels/classic/small/classic_small_004.json",
+    "levels/classic/small/classic_small_005.json",
+    "levels/classic/medium/classic_medium_001.json",
+    "levels/classic/medium/classic_medium_002.json",
+    "levels/classic/medium/classic_medium_003.json",
+    "levels/classic/medium/classic_medium_004.json",
+    "levels/classic/large/classic_large_001.json",
+    "levels/classic/large/classic_large_002.json",
+    "levels/classic/large/classic_large_003.json"
+  ],
+  "capacity": [
+    "levels/capacity/small/capacity_small_001.json",
+    "levels/capacity/small/capacity_small_002.json",
+    "levels/capacity/small/capacity_small_003.json",
+    "levels/capacity/small/capacity_small_004.json",
+    "levels/capacity/small/capacity_small_005.json",
+    "levels/capacity/medium/capacity_medium_001.json",
+    "levels/capacity/medium/capacity_medium_002.json",
+    "levels/capacity/medium/capacity_medium_003.json",
+    "levels/capacity/medium/capacity_medium_004.json",
+    "levels/capacity/large/capacity_large_001.json",
+    "levels/capacity/large/capacity_large_002.json",
+    "levels/capacity/large/capacity_large_003.json"
+  ],
+  "signal": [
+    "levels/signal/small/signal_small_001.json",
+    "levels/signal/small/signal_small_002.json",
+    "levels/signal/small/signal_small_003.json",
+    "levels/signal/small/signal_small_004.json",
+    "levels/signal/small/signal_small_teach_sparse.json",
+    "levels/signal/small/signal_small_teach_dense.json",
+    "levels/signal/medium/signal_medium_001.json",
+    "levels/signal/medium/signal_medium_002.json",
+    "levels/signal/medium/signal_medium_003.json",
+    "levels/signal/medium/signal_medium_teach_sparse.json",
+    "levels/signal/medium/signal_medium_teach_dense.json",
+    "levels/signal/large/signal_large_001.json",
+    "levels/signal/large/signal_large_002.json",
+    "levels/signal/large/signal_large_teach_sparse.json",
+    "levels/signal/large/signal_large_teach_dense.json"
+  ]
+}
