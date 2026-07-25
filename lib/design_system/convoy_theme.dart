@@ -52,7 +52,18 @@ class ConvoyTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: ConvoyTypography.panelTitle,
+        // Force-overridden to THIS brightness's color, same reasoning
+        // as textTheme()'s doc comment above: ConvoyTypography.panelTitle
+        // on its own reads the live/ambient ConvoyColors.textPrimary,
+        // which is whatever brightness happened to be active at the
+        // moment this ThemeData was built — not necessarily this
+        // brightness. Left unguarded, this is exactly what made AppBar
+        // titles ("SETTINGS", "ACHIEVEMENTS", etc.) render in the wrong
+        // mode's text color after a toggle — right color scheme
+        // everywhere else on the screen, unreadable title.
+        titleTextStyle: ConvoyTypography.panelTitle.copyWith(
+          color: ConvoyColors.textPrimaryFor(brightness),
+        ),
         iconTheme:
             IconThemeData(color: ConvoyColors.textPrimaryFor(brightness)),
       ),

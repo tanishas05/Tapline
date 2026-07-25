@@ -98,7 +98,10 @@ Level _illustrationLevel({
     difficultyTier: DifficultyTier.small,
     nodes: nodes,
     edges: edges,
-    optimum: 1,
+    // Matches the empty exampleSolution below — Level's constructor
+    // asserts exampleSolution.length == optimum, so these two can't
+    // disagree even on a throwaway illustration level.
+    optimum: 0,
     exampleSolution: const {},
     timeLimitSeconds: 1 << 20,
   );

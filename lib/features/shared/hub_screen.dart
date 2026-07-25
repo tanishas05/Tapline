@@ -13,6 +13,7 @@ import '../capacity/capacity_level_select_screen.dart';
 import '../classic/classic_level_select_screen.dart';
 import '../signal/signal_level_select_screen.dart';
 import 'achievements_screen.dart';
+import 'demo_screen.dart';
 import 'settings_screen.dart';
 import 'style_guide_screen.dart';
 
@@ -39,6 +40,19 @@ import 'style_guide_screen.dart';
 /// meta-progression signal for future bonus/cosmetic content (not yet
 /// built — no cosmetic assets exist in this codebase to unlock), not
 /// a gate.
+///
+/// The hero used to be a hand-drawn maze-with-a-figure boxed in a
+/// bordered "photo" card. [_HeroWheels] replaces it with the same
+/// [ConvoyNodeGlyph]/[ConvoyPipe] pieces gameplay actually uses, lit
+/// and connected, sitting directly on [BlueprintGrid] with no framing
+/// box — it reads as "the game, mid-flow," not decoration bolted on.
+///
+/// The coin balance and utility icons (theme toggle, achievements,
+/// settings, style guide) belong in the AppBar — that's the
+/// conventional, always-visible spot for them, not floating loose
+/// mid-page — so they're back there, just using [_CompactIconButton]/
+/// a trimmed [_CoinBadge] (~40x40 tap targets instead of the default
+/// 48x48) so five items plus the wordmark fit without truncating.
 class HubScreen extends ConsumerWidget {
   const HubScreen({super.key});
 
@@ -77,23 +91,18 @@ class HubScreen extends ConsumerWidget {
         return Scaffold(
           appBar: AppBar(
             titleSpacing: ConvoySpacing.md,
-            // FittedBox rather than a bare Text: if a future device/
-            // font-scale combination is still tight even after the
-            // trimmed actions below, the wordmark scales down instead
-            // of silently ellipsizing into "TAPLI…" the way it did
-            // before this fix. copyWith only touched fontSize, so the
-            // display-tuned letterSpacing: 6 (meant for the 34px hub
-            // wordmark) was carrying over unscaled into the 22px
-            // AppBar title — on its own that was already ~40px of
-            // dead space between 7 letters, which combined with four
-            // full-size IconButtons is what forced the truncation.
+            // FittedBox as a safety net: with the coin badge plus 5
+            // icons back in the actions row (How to Play included),
+            // this scales the wordmark down instead of silently
+            // truncating it on a narrower device, the same failure
+            // mode that started this whole thread.
             title: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(
                 'TAPLINE',
                 style: ConvoyTypography.wordmark.copyWith(
-                  fontSize: 22,
+                  fontSize: 20,
                   letterSpacing: 2,
                   color: ConvoyColors.textPrimaryFor(Theme.of(context).brightness),
                 ),
@@ -104,14 +113,20 @@ class HubScreen extends ConsumerWidget {
               if (store != null) _CoinBadge(balance: store.coinBalance),
               Builder(
                 builder: (context) {
-                  final platformBrightness =
-                      MediaQuery.platformBrightnessOf(context);
+                  final platformBrightness = MediaQuery.platformBrightnessOf(context);
                   final isDark = themeModeController.isDark(platformBrightness);
                   return _CompactIconButton(
                     tooltip: isDark ? 'Light mode' : 'Dark mode',
                     icon: isDark ? Icons.light_mode : Icons.dark_mode,
                     onPressed: () => themeModeController.toggle(platformBrightness),
                   );
+                },
+              ),
+              _CompactIconButton(
+                tooltip: 'How to play',
+                icon: Icons.school,
+                onPressed: () {
+                  Navigator.of(context).pushNamed(DemoScreen.routeName);
                 },
               ),
               _CompactIconButton(
@@ -145,34 +160,13 @@ class HubScreen extends ConsumerWidget {
                 child: ListView(
                   padding: const EdgeInsets.all(ConvoySpacing.lg),
                   children: [
-                    // Hero banner — the original pipe-maze
-                    // illustration (see PipeMazeArt), full color with
-                    // its little figure. If you'd rather use a real
-                    // photo/artwork file instead, swap the ClipRRect's
-                    // child below for Image.asset('assets/images/
-                    // your_file.png', fit: BoxFit.cover) — the sizing/
-                    // border/clip is already set up to hold either.
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: Builder(
-                        builder: (context) {
-                          final brightness = Theme.of(context).brightness;
-                          return Container(
-                            height: 200,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: ConvoyColors.surfaceElevatedFor(brightness),
-                              border: Border.all(
-                                color: ConvoyColors.outlineFor(brightness),
-                              ),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const PipeMazeArt(rich: true),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: ConvoySpacing.xl),
+                    // Hero — lit valve wheels linked by active pipes,
+                    // the same pieces a gameplay board is built from.
+                    // No card/border around it: it sits straight on
+                    // the blueprint background like the rest of the
+                    // chrome does.
+                    const _HeroWheels(),
+                    const SizedBox(height: ConvoySpacing.lg),
                     Builder(
                       builder: (context) => Text(
                         'MODE SELECT',
@@ -273,6 +267,137 @@ class HubScreen extends ConsumerWidget {
   }
 }
 
+/// The hub's hero: a short run of [ConvoyNodeGlyph] valve wheels,
+/// linked by lit [ConvoyPipe] segments — literally the same widgets
+/// a gameplay board renders, not a separate illustration. Deliberate:
+/// the old hero was a hand-drawn maze-with-a-figure inside a bordered
+/// photo-style card, which read as decoration bolted onto the game
+/// rather than the game itself. This reads as "the game, mid-flow,"
+/// and drawing it with the real gameplay widgets means it can never
+/// visually drift out of sync with what a board actually looks like.
+/// No card/border/background — it's meant to sit directly on
+/// [BlueprintGrid] like every other piece of chrome on this screen.
+class _HeroWheels extends StatelessWidget {
+  const _HeroWheels();
+
+  static const double _diameter = 52;
+
+  // Extra clearance beyond the wheel's own radius so its glow
+  // (boxShadow blurRadius 22 + spreadRadius 4 in ConvoyNodeGlyph)
+  // has room to fall off before the Stack's edge — without this the
+  // end wheels' halos (and the wheels themselves, at t=0/t=1) get
+  // hard-clipped by the container bounds, which is what was cutting
+  // the first and last wheels in half.
+  static const double _glowClearance = 26;
+
+  // A gentle up/down wave rather than a dead-flat row — reads as a
+  // little run of track, closer to the level-path treatment casual
+  // games (Candy Crush, Subway Surfer's coin trails) use, instead of
+  // four circles glued edge-to-edge in a straight line.
+  static const double _waveAmplitude = 16;
+
+  // Alternating tapped/supplied so the strip doesn't read as one
+  // flat color — mirrors how a real board mixes "this one's the
+  // source" (tapped, solid fill) with "this one's downstream"
+  // (supplied, outline) rather than lighting every wheel identically.
+  static const List<NodeVisualState> _states = [
+    NodeVisualState.tapped,
+    NodeVisualState.supplied,
+    NodeVisualState.supplied,
+    NodeVisualState.tapped,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = _diameter / 2 + _glowClearance;
+    return SizedBox(
+      height: _diameter + _glowClearance * 2 + _waveAmplitude * 2,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final count = _states.length;
+          final centerY = constraints.maxHeight / 2;
+          // Usable span is inset from both edges so nothing —
+          // wheel or glow — ever touches the container boundary.
+          final span = (constraints.maxWidth - inset * 2).clamp(0.0, double.infinity);
+          final positions = List.generate(count, (i) {
+            final t = count == 1 ? 0.5 : i / (count - 1);
+            // Alternate above/below center; the middle wheels sit
+            // closest to center, the end ones swing furthest, so
+            // the whole strip reads as one continuous gentle curve
+            // rather than a hard zigzag.
+            final wave = _waveAmplitude * (i.isEven ? -1 : 1);
+            return Offset(inset + span * t, centerY + wave);
+          });
+          return Stack(
+            // The glow is allowed to bleed slightly past a wheel's
+            // own box (that's the point of a soft shadow) — clipping
+            // it at the Stack's own edge is exactly what produced
+            // the hard-cut halo look, so let it render past bounds.
+            clipBehavior: Clip.none,
+            children: [
+              // Pipes first, wheels drawn on top so a wheel's glow
+              // isn't hidden behind an incoming pipe.
+              for (var i = 0; i < count - 1; i++)
+                Positioned.fill(
+                  child: ConvoyPipe(
+                    start: positions[i],
+                    end: positions[i + 1],
+                    state: PipeState.active,
+                    curvature: 0.16,
+                    baseStrokeWidth: 3,
+                  ),
+                ),
+              for (var i = 0; i < count; i++)
+                Positioned(
+                  left: positions[i].dx - _diameter / 2,
+                  top: positions[i].dy - _diameter / 2,
+                  child: ConvoyNodeGlyph(
+                    // Unused for rendering (ConvoyNodeGlyph always
+                    // draws the valve-wheel glyph) — kept only
+                    // because the constructor still requires one.
+                    icon: Icons.circle,
+                    state: _states[i],
+                    diameter: _diameter,
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// A plain [IconButton] reserves a 48x48 tap target by default —
+/// four of those plus the coin badge next to a title is exactly what
+/// forced "TAPLINE" to truncate before. This trims padding/
+/// constraints down to a still-comfortable ~40x40 without losing tap-
+/// target accessibility sizing by much, which is what makes room for
+/// the wordmark and the icons to coexist in the AppBar.
+class _CompactIconButton extends StatelessWidget {
+  const _CompactIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: tooltip,
+      icon: Icon(icon),
+      onPressed: onPressed,
+      padding: const EdgeInsets.all(6),
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+}
+
 /// Small HUD-style caption under a [ModePanel] showing curated level
 /// count and cumulative star total for that track — informational
 /// only, see [HubScreen]'s doc comment on why this never gates
@@ -309,40 +434,10 @@ class _TrackProgressCaption extends StatelessWidget {
   }
 }
 
-/// Coin balance badge in the app bar — the same [ProgressStore.coinBalance]
-/// every gameplay screen already reads/writes, just made visible
-/// somewhere a player sees it outside of an active attempt. Purely a
-/// display; nothing here spends or earns coins.
-/// A plain [IconButton] reserves a 48x48 tap target by default. Four
-/// of those in a row is ~200px of AppBar width gone before the title
-/// gets a look-in — this trims the padding/constraints down to a
-/// still-comfortable ~40x40 without losing tap-target accessibility
-/// sizing by much, which is what actually made room for the
-/// "TAPLINE" wordmark to render without truncating.
-class _CompactIconButton extends StatelessWidget {
-  const _CompactIconButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: tooltip,
-      icon: Icon(icon),
-      onPressed: onPressed,
-      padding: const EdgeInsets.all(6),
-      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-      visualDensity: VisualDensity.compact,
-    );
-  }
-}
-
+/// Coin balance badge — the same [ProgressStore.coinBalance] every
+/// gameplay screen already reads/writes, just made visible somewhere
+/// a player sees it outside of an active attempt. Purely a display;
+/// nothing here spends or earns coins.
 class _CoinBadge extends StatelessWidget {
   const _CoinBadge({required this.balance});
 
