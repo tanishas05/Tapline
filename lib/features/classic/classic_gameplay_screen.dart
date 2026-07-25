@@ -494,43 +494,6 @@ class _ClassicGameplayScreenState extends ConsumerState<ClassicGameplayScreen> {
                   ],
                 ),
               ),
-              // Small bulb-and-wire flourish — same visual language as
-              // the hub banner — filling the gap between the header
-              // and the graph rather than leaving it bare.
-              SizedBox(
-                height: 56,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final w = constraints.maxWidth;
-                    final center = Offset(w / 2, 40);
-                    final ends = [
-                      Offset(w * 0.15, 12),
-                      Offset(w * 0.85, 12),
-                    ];
-                    return Stack(
-                      children: [
-                        for (final end in ends)
-                          ConvoyPipe(
-                            start: center,
-                            end: end,
-                            state: PipeState.active,
-                            curvature: 0.15,
-                            baseStrokeWidth: 2,
-                          ),
-                        Positioned(
-                          left: center.dx - 14,
-                          top: center.dy - 14,
-                          child: Icon(
-                            Icons.lightbulb,
-                            color: ConvoyColors.amber,
-                            size: 28,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
               Expanded(
                 child: LevelGraphView(
                   level: _controller.level,

@@ -119,47 +119,32 @@ class LevelGraphView extends StatelessWidget {
     }
 
     // FittedBox needs bounded incoming constraints to know what box
-    // to fit into — the Padding+Align below still get that from
-    // whatever the parent (an Expanded, in every current caller)
-    // hands down, same as before.
-    //
-    // Top-aligned rather than dead-centered: most levels' node layout
-    // is wider than it is tall, so BoxFit.contain locks to the width
-    // constraint and leaves the fitted graph noticeably shorter than
-    // the available (portrait, tall) space — centering that put a
-    // large empty gap both above AND below it, which read as broken
-    // rather than intentional. Anchoring to the top means whatever
-    // leftover space is inherent to that aspect-ratio mismatch
-    // collects below the graph instead, right under the header where
-    // it looks like normal breathing room rather than a gap.
-    return Padding(
-      padding: const EdgeInsets.only(top: ConvoySpacing.md),
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: FittedBox(
-          fit: BoxFit.contain,
-          child: SizedBox(
-            width: canvasWidth,
-            height: canvasHeight,
-            child: Stack(
-              children: [
-                for (final edge in level.edges)
-                  if (positions[edge.from] != null &&
-                      positions[edge.to] != null)
-                    Positioned.fill(
-                      child: ConvoyPipe(
-                        start: localOffset(positions[edge.from]!),
-                        end: localOffset(positions[edge.to]!),
-                        state: pipeStates[LevelGraphView.edgeKey(edge)] ??
-                            PipeState.inactive,
-                        directed: level.directed,
-                      ),
+    // to fit into — Center provides that from whatever the parent
+    // (an Expanded, in every current caller) hands down.
+    return Center(
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: SizedBox(
+          width: canvasWidth,
+          height: canvasHeight,
+          child: Stack(
+            children: [
+              for (final edge in level.edges)
+                if (positions[edge.from] != null &&
+                    positions[edge.to] != null)
+                  Positioned.fill(
+                    child: ConvoyPipe(
+                      start: localOffset(positions[edge.from]!),
+                      end: localOffset(positions[edge.to]!),
+                      state: pipeStates[LevelGraphView.edgeKey(edge)] ??
+                          PipeState.inactive,
+                      directed: level.directed,
                     ),
-                for (var i = 0; i < level.nodes.length; i++)
-                if (positions[level.nodes[i].id] != null)
-                  _positionedNode(level.nodes[i], i, localOffset, positions),
-              ],
-            ),
+                  ),
+              for (var i = 0; i < level.nodes.length; i++)
+              if (positions[level.nodes[i].id] != null)
+                _positionedNode(level.nodes[i], i, localOffset, positions),
+            ],
           ),
         ),
       ),
