@@ -8,3 +8,4 @@ export 'widgets/blueprint_grid.dart';
 export 'widgets/convoy_node.dart';
 export 'widgets/convoy_pipe.dart';
 export 'widgets/mode_panel.dart';
+export 'widgets/pipe_maze_art.dart';

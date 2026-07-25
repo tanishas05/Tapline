@@ -130,6 +130,8 @@ class ConvoyColors {
       b == Brightness.dark ? _textSecondaryDark : _textSecondaryLight;
   static Color amberFor(Brightness b) =>
       b == Brightness.dark ? _amberDark : _amberLight;
+  static Color amberDimFor(Brightness b) =>
+      b == Brightness.dark ? _amberDimDark : _amberDimLight;
   static Color cyanFor(Brightness b) =>
       b == Brightness.dark ? _cyanDark : _cyanLight;
   static Color redDecayFor(Brightness b) =>

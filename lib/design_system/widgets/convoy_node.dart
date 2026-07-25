@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../convoy_colors.dart';
@@ -20,15 +22,16 @@ enum NodeVisualState { inactive, tapped, supplied, decaying }
 /// instead of a plain position number) without duplicating the ring/
 /// fill/icon rendering [ConvoyNode] already gets right.
 ///
-/// Renders as a lightbulb — outline when unlit, filled and glowing
-/// once tapped/supplied — regardless of the [icon] a caller passes.
-/// Per-mode glyphs (tank, antenna, gauge dial) gave each mode its own
-/// identity, but the whole point of a "bulb and wire" network puzzle
-/// is that every node reads as a light being powered — so this now
-/// commits to that uniformly across Classic/Capacity/Signal rather
-/// than mixing metaphors per mode. [icon] is kept (rather than
-/// removed) purely so existing call sites don't need updating; it's
-/// unused for rendering now.
+/// Renders as a pipe valve wheel (rim + spokes + center hub) —
+/// closed/dim when unlit, open/glowing bright once tapped/supplied —
+/// regardless of the [icon] a caller passes. A lightbulb read as the
+/// wrong metaphor once the rest of the app committed to a plumbing/
+/// pipe visual language (see [PipeMazeArt], [ConvoyPipe]'s tube
+/// rendering); a valve you turn to open the flow fits that world
+/// instead. Hand-drawn with [CustomPaint] rather than a stock icon so
+/// the spoke count/proportions can be tuned precisely. [icon] is kept
+/// (rather than removed) purely so existing call sites don't need
+/// updating; it's unused for rendering now.
 class ConvoyNodeGlyph extends StatelessWidget {
   const ConvoyNodeGlyph({
     super.key,
@@ -43,9 +46,6 @@ class ConvoyNodeGlyph extends StatelessWidget {
 
   bool get _isLit =>
       state == NodeVisualState.tapped || state == NodeVisualState.supplied;
-
-  IconData get _bulbIcon =>
-      _isLit ? Icons.lightbulb : Icons.lightbulb_outline;
 
   Color get _ringColor {
     switch (state) {
@@ -94,9 +94,9 @@ class ConvoyNodeGlyph extends StatelessWidget {
         shape: BoxShape.circle,
         color: _fillColor,
         border: Border.all(color: _ringColor, width: 2),
-        // A richer, two-layer glow for a lit bulb: a wide soft outer
-        // wash plus a tighter, hotter inner ring, instead of one flat
-        // shadow — reads more like an actual light source.
+        // A richer, two-layer glow when open: a wide soft outer wash
+        // plus a tighter, hotter inner ring, instead of one flat
+        // shadow — reads more like a valve actively passing supply.
         boxShadow: _isLit
             ? [
                 BoxShadow(
@@ -112,8 +112,60 @@ class ConvoyNodeGlyph extends StatelessWidget {
               ]
             : const [],
       ),
-      child: Icon(_bulbIcon, color: _glyphColor, size: diameter * 0.42),
+      child: CustomPaint(
+        size: Size.square(diameter * 0.5),
+        painter: _ValveWheelPainter(color: _glyphColor),
+      ),
     );
+  }
+}
+
+/// A pipe valve wheel: an outer rim ring, four spokes to a center
+/// hub, and a small hub cap — the classic "turn to open the flow"
+/// handle shape, drawn to whatever size it's given.
+class _ValveWheelPainter extends CustomPainter {
+  _ValveWheelPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = size.shortestSide / 2;
+    final strokeWidth = radius * 0.22;
+
+    final rimPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    // Outer rim — inset so the stroke doesn't clip against the
+    // widget's own bounds.
+    canvas.drawCircle(center, radius - strokeWidth / 2, rimPaint);
+
+    // Four spokes from the hub out to just inside the rim.
+    final spokePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth * 0.7
+      ..strokeCap = StrokeCap.round;
+    final spokeInner = radius * 0.22;
+    final spokeOuter = radius - strokeWidth;
+    for (final angle in [0.0, math.pi / 2, math.pi, math.pi * 1.5])
+      canvas.drawLine(
+        center + Offset(math.cos(angle), math.sin(angle)) * spokeInner,
+        center + Offset(math.cos(angle), math.sin(angle)) * spokeOuter,
+        spokePaint,
+      );
+
+    // Center hub cap.
+    canvas.drawCircle(center, spokeInner * 0.9, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ValveWheelPainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }
 

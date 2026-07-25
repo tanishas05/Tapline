@@ -467,6 +467,7 @@ class _CapacityGameplayScreenState
         alignment: Alignment.topCenter,
         fit: StackFit.expand,
         children: [
+          const BlueprintGrid(),
           Column(
             children: [
               Padding(

@@ -450,6 +450,7 @@ class _ClassicGameplayScreenState extends ConsumerState<ClassicGameplayScreen> {
         alignment: Alignment.topCenter,
         fit: StackFit.expand,
         children: [
+          const BlueprintGrid(),
           Column(
             children: [
               Padding(

@@ -177,10 +177,9 @@ class _PipePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final path = _buildPath();
 
-    // Soft outer glow when the wire is actually carrying something —
-    // a wide, blurred pass underneath the wire itself, same trick as
-    // the bulb's own two-layer glow, so a live wire reads as visibly
-    // "hot" rather than just a thicker line.
+    // Soft outer glow when the pipe is actually carrying something —
+    // a wide, blurred pass underneath everything else, so a live pipe
+    // reads as visibly "powered" rather than just a thicker line.
     if (state == PipeState.active || state == PipeState.spillover) {
       final glowPaint = Paint()
         ..color = color.withValues(alpha: state == PipeState.active ? 0.35 : 0.22)
@@ -191,32 +190,47 @@ class _PipePainter extends CustomPainter {
       canvas.drawPath(path, glowPaint);
     }
 
-    // Twin-lead cable look: two thin parallel strokes instead of one
-    // flat line, like an actual lamp cord rather than a schematic
-    // pipe. Offset perpendicular to the curve at a few sampled points
-    // so the two leads stay parallel along the whole bow, not just at
-    // the endpoints.
-    final lead1 = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth * 0.55
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final lead2 = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth * 0.55
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+    // A genuinely dimensional tube: dark outline for edge definition,
+    // a shadow band along one side, the base color as the tube's main
+    // body, and a bright highlight offset toward the OTHER side (not
+    // centered) — mimicking a light source hitting the top of a round
+    // pipe. Centering the highlight (the previous version) reads as
+    // flat; offsetting it is what actually sells roundness.
+    final tubeRadius = strokeWidth * 0.9;
 
-    final offsetGap = strokeWidth * 0.55;
-    final leadPath1 = _offsetPath(path, offsetGap);
-    final leadPath2 = _offsetPath(path, -offsetGap);
+    final outlinePaint = Paint()
+      ..color = Color.lerp(color, Colors.black, 0.6)!
+      ..strokeWidth = tubeRadius * 2.3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final bodyPaint = Paint()
+      ..color = color
+      ..strokeWidth = tubeRadius * 1.9
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final shadowPaint = Paint()
+      ..color = Color.lerp(color, Colors.black, 0.32)!
+      ..strokeWidth = tubeRadius * 0.7
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final shadowPath = _offsetPath(path, tubeRadius * 0.55);
+    final highlightPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.85)
+      ..strokeWidth = tubeRadius * 0.55
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final highlightPath = _offsetPath(path, -tubeRadius * 0.45);
 
     if (state == PipeState.decaying) {
-      _paintDashed(canvas, leadPath1, lead1);
-      _paintDashed(canvas, leadPath2, lead2);
+      _paintDashed(canvas, path, outlinePaint);
+      _paintDashed(canvas, path, bodyPaint);
+      _paintDashed(canvas, shadowPath, shadowPaint);
+      _paintDashed(canvas, highlightPath, highlightPaint);
     } else {
-      canvas.drawPath(leadPath1, lead1);
-      canvas.drawPath(leadPath2, lead2);
+      canvas.drawPath(path, outlinePaint);
+      canvas.drawPath(path, bodyPaint);
+      canvas.drawPath(shadowPath, shadowPaint);
+      canvas.drawPath(highlightPath, highlightPaint);
     }
 
     if (directed) {

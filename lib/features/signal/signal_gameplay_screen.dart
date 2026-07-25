@@ -468,6 +468,7 @@ class _SignalGameplayScreenState extends ConsumerState<SignalGameplayScreen> {
         alignment: Alignment.topCenter,
         fit: StackFit.expand,
         children: [
+          const BlueprintGrid(),
           Column(
             children: [
               Padding(

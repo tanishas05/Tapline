@@ -145,21 +145,19 @@ class HubScreen extends ConsumerWidget {
                 child: ListView(
                   padding: const EdgeInsets.all(ConvoySpacing.lg),
                   children: [
-                    // Hero banner — reserved space for artwork. Swap
-                    // the LayoutBuilder illustration below for
-                    // Image.asset('assets/images/your_file.png',
-                    // fit: BoxFit.cover) once real artwork is added;
-                    // everything else (rounded clip, border, sizing)
-                    // is already set up to just hold it. Until then,
-                    // this draws a small bulb-and-wires scene using
-                    // the same ConvoyPipe curves gameplay uses, so the
-                    // banner isn't just an empty box.
-                    Builder(
-                      builder: (context) {
-                        final brightness = Theme.of(context).brightness;
-                        return ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: Container(
+                    // Hero banner — the original pipe-maze
+                    // illustration (see PipeMazeArt), full color with
+                    // its little figure. If you'd rather use a real
+                    // photo/artwork file instead, swap the ClipRRect's
+                    // child below for Image.asset('assets/images/
+                    // your_file.png', fit: BoxFit.cover) — the sizing/
+                    // border/clip is already set up to hold either.
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Builder(
+                        builder: (context) {
+                          final brightness = Theme.of(context).brightness;
+                          return Container(
                             height: 200,
                             width: double.infinity,
                             decoration: BoxDecoration(
@@ -169,82 +167,10 @@ class HubScreen extends ConsumerWidget {
                               ),
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                final w = constraints.maxWidth;
-                                const h = 200.0;
-                                final center = Offset(w / 2, h / 2 - 10);
-                                // Four supply nodes wired into the
-                                // bulb, roughly matching how a small
-                                // gameplay graph is laid out.
-                                final ends = [
-                                  Offset(w * 0.12, h * 0.28),
-                                  Offset(w * 0.88, h * 0.24),
-                                  Offset(w * 0.18, h * 0.82),
-                                  Offset(w * 0.82, h * 0.80),
-                                ];
-                                return Stack(
-                                  children: [
-                                    for (final end in ends)
-                                      ConvoyPipe(
-                                        start: center,
-                                        end: end,
-                                        state: PipeState.active,
-                                        curvature: 0.18,
-                                        baseStrokeWidth: 2.5,
-                                      ),
-                                    for (final end in ends)
-                                      Positioned(
-                                        left: end.dx - 8,
-                                        top: end.dy - 8,
-                                        child: Container(
-                                          width: 16,
-                                          height: 16,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: ConvoyColors.surfaceElevatedFor(
-                                              brightness,
-                                            ),
-                                            border: Border.all(
-                                              color: ConvoyColors.amberFor(
-                                                brightness,
-                                              ),
-                                              width: 2,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    Positioned(
-                                      left: center.dx - 26,
-                                      top: center.dy - 26,
-                                      child: Container(
-                                        width: 52,
-                                        height: 52,
-                                        alignment: Alignment.center,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: ConvoyColors.surfaceElevatedFor(
-                                            brightness,
-                                          ),
-                                          border: Border.all(
-                                            color: ConvoyColors.amberFor(brightness),
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          Icons.lightbulb,
-                                          color: ConvoyColors.amberFor(brightness),
-                                          size: 26,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
-                        );
-                      },
+                            child: const PipeMazeArt(rich: true),
+                          );
+                        },
+                      ),
                     ),
                     const SizedBox(height: ConvoySpacing.xl),
                     Builder(
