@@ -5,6 +5,7 @@ import 'data/theme_mode_controller.dart';
 import 'design_system/convoy_colors.dart';
 import 'design_system/convoy_theme.dart';
 import 'features/shared/achievements_screen.dart';
+import 'features/shared/demo_screen.dart';
 import 'features/shared/hub_screen.dart';
 import 'features/shared/settings_screen.dart';
 import 'features/shared/style_guide_screen.dart';
@@ -74,6 +75,7 @@ class _ConvoyAppState extends ConsumerState<ConvoyApp> {
       initialRoute: HubScreen.routeName,
       routes: {
         HubScreen.routeName: (context) => const HubScreen(),
+        DemoScreen.routeName: (context) => const DemoScreen(),
         StyleGuideScreen.routeName: (context) => const StyleGuideScreen(),
         SettingsScreen.routeName: (context) => const SettingsScreen(),
         AchievementsScreen.routeName: (context) => const AchievementsScreen(),
