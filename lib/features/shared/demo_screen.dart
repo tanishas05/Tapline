@@ -1,13 +1,15 @@
 // "How to play" / demo screen, reachable from a dedicated hub icon.
 //
-// Three tabs, one per mode. Each tab is now a page-by-page wizard
-// rather than one scrolling paragraph-plus-cramped-graph screen:
-// a few short concept steps (one idea per page, each illustrated by
-// a small live example graph — not a static image, the real
-// LevelGraphView with a hand-picked tapped set, so the illustration
-// uses the exact same rendering and colors as real gameplay), then a
-// final page that's nothing but the practice graph, full-height, in
-// guided-walkthrough mode from the moment it opens.
+// Three tabs, one per mode. Each tab is a page-by-page wizard: a few
+// short concept steps (one idea per page, each illustrated by a small
+// live example graph — not a static image, the real LevelGraphView
+// with a hand-picked tapped set, so the illustration uses the exact
+// same rendering and colors as real gameplay), then a final page
+// that's nothing but the practice graph, full-height, in guided-
+// walkthrough mode from the moment it opens. A "TRY DEMO" button on
+// every concept step (not just the last one) jumps straight there —
+// a first-time player who'd rather learn by doing than read three
+// steps of text never has to swipe through all of them first.
 //
 // Nothing on this whole screen ever touches ProgressStore: no coins
 // spent or earned, no slot/progress writes, on the concept-step
@@ -15,14 +17,28 @@
 // the practice page (whose own untimed, unpersisted GameplayController
 // is exactly the one from the previous version of this screen).
 //
-// The guided walkthrough itself — highlighting one node from the
-// level's curated optimal solution at a time, explaining why each one
-// matters, computed live rather than hand-written per level — is
-// unchanged from before. The only difference is it now starts
-// automatically the moment the practice page opens, instead of
-// waiting for a "WALK ME THROUGH IT" tap; that button is still there
-// (now doubling as "restart the walkthrough"), alongside RESET for
-// dropping into free play on the same graph.
+// THE GUIDED WALKTHROUGH is a locked, one-node-at-a-time tutorial, not
+// free play with hints: at every step exactly one node (from the
+// level's curated optimal solution, computed live rather than
+// hand-written per level) is highlighted and tappable-as-intended.
+// - Before the tap: an assistant-style bubble names the node and
+//   explains why it's the right move.
+// - Tapping any OTHER node is rejected — it has no effect on the
+//   board — and is met with a mode-specific "common mistake" bubble
+//   explaining specifically why that node isn't it (already covered
+//   by spillover/reachability? not part of the minimum solution?),
+//   not a generic "try again."
+// - Tapping the right node is accepted immediately, and a brief
+//   "CORRECT" confirmation bubble explains what just happened (which
+//   nodes got newly covered and why) before the highlight moves to
+//   the next node in the solution.
+// - This repeats until the example puzzle is solved, at which point
+//   the normal outcome banner (3-star / 2-star) takes over as the
+//   "this is what success looks like" payoff.
+// It starts automatically the moment the practice page opens, instead
+// of waiting for a "WALK ME THROUGH IT" tap; that button is still
+// there (now doubling as "restart the walkthrough"), alongside RESET
+// for dropping into free play on the same graph.
 //
 // Node/pipe visual-state mapping per mode is reimplemented here
 // rather than imported, deliberately: those are private State methods
@@ -37,6 +53,8 @@
 // functions render both the static concept-step illustrations (no
 // controller at all, just a hand-picked tapped set) and the greedy
 // walkthrough ordering (which simulates hypothetical tapped sets).
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,6 +86,19 @@ typedef _ExplainStepBuilder = String Function(
     Set<String> tappedBefore,
     String nodeId,
     Set<String> newlySatisfiedIds,
+    );
+
+/// Explains why a WRONG node tap wasn't the right move — mode-specific,
+/// so it can name the actual mode-specific reason ("already covered by
+/// spillover", "nothing points to it", etc.) rather than a generic
+/// "try again." [wrongNodeId] is the node the player tapped that the
+/// guided walkthrough rejected; the currently-expected node stays
+/// highlighted on screen, this text just explains the miss.
+typedef _ExplainMistakeBuilder = String Function(
+    Graph graph,
+    Level level,
+    Set<String> tapped,
+    String wrongNodeId,
     );
 
 /// The 1-based number LevelGraphView actually prints on a node, so
@@ -237,6 +268,22 @@ class _ClassicDemoTab extends ConsumerWidget {
             '${labels.length} more node$plural through its pipes — '
             'node$plural ${labels.join(', ')}.';
       },
+      explainMistake: (graph, level, tapped, wrongNodeId) {
+        final here = _displayIndexOf(level, wrongNodeId);
+        final alreadySupplied =
+            _classicNodeStates(graph, level, tapped)[wrongNodeId] ==
+                NodeVisualState.supplied;
+        if (alreadySupplied) {
+          return 'Node $here is already supplied by an earlier tap — '
+              'tapping it again would waste a tap. A common Classic '
+              'mistake: retapping tanks that are already covered instead '
+              'of the ones still empty.';
+        }
+        return 'Node $here isn\'t part of the fewest-taps solution here. '
+            'A common Classic mistake is tapping a tank because it '
+            'LOOKS central, instead of checking which still-empty tank '
+            'the highlighted node actually covers.';
+      },
     );
   }
 }
@@ -322,6 +369,22 @@ class _CapacityDemoTab extends ConsumerWidget {
             'sends each neighbor, closes the demand gap on '
             'node$plural ${labels.join(', ')}.';
       },
+      explainMistake: (graph, level, tapped, wrongNodeId) {
+        final here = _displayIndexOf(level, wrongNodeId);
+        final alreadyMet =
+            _capacityNodeStates(graph, level, tapped)[wrongNodeId] ==
+                NodeVisualState.supplied;
+        if (alreadyMet) {
+          return 'Node $here already has its demand met from spillover — '
+              'tapping it directly would waste a tap. A common Capacity '
+              'mistake: tapping tanks that don\'t need it instead of '
+              'ones still short.';
+        }
+        return 'Node $here isn\'t the most efficient tap here. A common '
+            'Capacity mistake is forgetting spillover is only HALF a '
+            'tapped tank\'s capacity — distant tanks usually still need '
+            'their own tap.';
+      },
     );
   }
 }
@@ -393,6 +456,21 @@ class _SignalDemoTab extends ConsumerWidget {
         return 'Tap node $here. Signal now reaches node$plural '
             '${labels.join(', ')} — no other driver node in this '
             'solution can reach ${labels.length == 1 ? 'it' : 'them'}.';
+      },
+      explainMistake: (graph, level, tapped, wrongNodeId) {
+        final here = _displayIndexOf(level, wrongNodeId);
+        final alreadyReached =
+            _signalNodeStates(graph, level, tapped)[wrongNodeId] ==
+                NodeVisualState.supplied;
+        if (alreadyReached) {
+          return 'Node $here is already under control from an earlier '
+              'tap — a common Signal mistake is re-tapping a reached '
+              'tank instead of finding the next driver node.';
+        }
+        return 'Node $here isn\'t one of this level\'s minimum driver '
+            'nodes. A common Signal mistake is tapping whatever LOOKS '
+            'busiest — what actually matters is whether anything points '
+            'TO it. Nodes nothing points to must be driven directly.';
       },
     );
   }
@@ -548,6 +626,7 @@ class _ModeWizard extends StatefulWidget {
     required this.track,
     required this.content,
     required this.explainStep,
+    required this.explainMistake,
   });
 
   final List<_ConceptStep> steps;
@@ -557,6 +636,7 @@ class _ModeWizard extends StatefulWidget {
   final AsyncValue<List<Level>> track;
   final OnboardingContent content;
   final _ExplainStepBuilder explainStep;
+  final _ExplainMistakeBuilder explainMistake;
 
   @override
   State<_ModeWizard> createState() => _ModeWizardState();
@@ -594,6 +674,20 @@ class _ModeWizardState extends State<_ModeWizard> {
     );
   }
 
+  /// Jumps straight to the interactive practice page from ANY concept
+  /// step — the "TRY DEMO" button on every step. A first-time player
+  /// who already gets the idea shouldn't have to click NEXT through
+  /// the remaining steps just to reach the part where they actually
+  /// play; reading all the steps stays available via BACK/NEXT for
+  /// anyone who wants it, but it's opt-in, not mandatory.
+  void _startDemo() {
+    _pageController.animateToPage(
+      widget.steps.length,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOut,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -609,6 +703,8 @@ class _ModeWizardState extends State<_ModeWizard> {
                   nodeIcon: widget.nodeIcon,
                   nodeStatesOf: widget.nodeStatesOf,
                   pipeStatesOf: widget.pipeStatesOf,
+                  accentColor: widget.content.accentColor,
+                  onTryDemo: _startDemo,
                 ),
               _TrackLoader(
                 track: widget.track,
@@ -619,6 +715,7 @@ class _ModeWizardState extends State<_ModeWizard> {
                   nodeStatesOf: widget.nodeStatesOf,
                   pipeStatesOf: widget.pipeStatesOf,
                   explainStep: widget.explainStep,
+                  explainMistake: widget.explainMistake,
                   autoStartGuided: true,
                 ),
               ),
@@ -671,12 +768,20 @@ class _ConceptStepView extends StatelessWidget {
     required this.nodeIcon,
     required this.nodeStatesOf,
     required this.pipeStatesOf,
+    required this.accentColor,
+    required this.onTryDemo,
   });
 
   final _ConceptStep step;
   final IconData nodeIcon;
   final _NodeStatesBuilder nodeStatesOf;
   final _PipeStatesBuilder pipeStatesOf;
+  final Color accentColor;
+
+  /// Jumps straight to the interactive practice page — available from
+  /// every step, not just the last one, so reading the concept steps
+  /// is never a precondition for actually playing.
+  final VoidCallback onTryDemo;
 
   @override
   Widget build(BuildContext context) {
@@ -699,7 +804,7 @@ class _ConceptStepView extends StatelessWidget {
           Text(step.body, style: ConvoyTypography.body),
           const SizedBox(height: ConvoySpacing.lg),
           SizedBox(
-            height: 240,
+            height: 220,
             child: LevelGraphView(
               level: step.illustration,
               nodeIcon: nodeIcon,
@@ -708,6 +813,22 @@ class _ConceptStepView extends StatelessWidget {
               onNodeTap: (_) {},
             ),
           ),
+          const SizedBox(height: ConvoySpacing.lg),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: onTryDemo,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accentColor,
+                foregroundColor: ConvoyColors.background,
+                padding:
+                const EdgeInsets.symmetric(vertical: ConvoySpacing.sm),
+              ),
+              icon: const Icon(Icons.play_circle_fill, size: 20),
+              label: const Text('TRY DEMO'),
+            ),
+          ),
+          const SizedBox(height: ConvoySpacing.md),
         ],
       ),
     );
@@ -761,6 +882,7 @@ class _PlayAlongCard extends StatefulWidget {
     required this.nodeStatesOf,
     required this.pipeStatesOf,
     required this.explainStep,
+    required this.explainMistake,
     this.autoStartGuided = false,
   });
 
@@ -770,6 +892,7 @@ class _PlayAlongCard extends StatefulWidget {
   final _NodeStatesBuilder nodeStatesOf;
   final _PipeStatesBuilder pipeStatesOf;
   final _ExplainStepBuilder explainStep;
+  final _ExplainMistakeBuilder explainMistake;
   final bool autoStartGuided;
 
   @override
@@ -782,6 +905,15 @@ class _PlayAlongCardState extends State<_PlayAlongCard> {
   bool _guided = false;
   List<String> _guidedOrder = const [];
   int _guidedStep = 0;
+
+  /// Non-null while a transient "CORRECT" or "NOT QUITE" bubble is
+  /// showing in place of the normal instruction bubble — interaction
+  /// stays locked (see [_handleNodeTap]) for its whole duration, same
+  /// as the instruction bubble it temporarily replaces. Cleared by
+  /// [_feedbackTimer] once its short display window elapses.
+  String? _feedbackMessage;
+  bool _feedbackIsMistake = false;
+  Timer? _feedbackTimer;
 
   @override
   void initState() {
@@ -803,6 +935,7 @@ class _PlayAlongCardState extends State<_PlayAlongCard> {
 
   @override
   void dispose() {
+    _feedbackTimer?.cancel();
     _controller.removeListener(_onChanged);
     _controller.dispose();
     super.dispose();
@@ -825,11 +958,13 @@ class _PlayAlongCardState extends State<_PlayAlongCard> {
   }
 
   void _reset() {
+    _feedbackTimer?.cancel();
     _controller.retry(_practiceLevel(widget.demoLevel));
     setState(() {
       _guided = false;
       _guidedOrder = const [];
       _guidedStep = 0;
+      _feedbackMessage = null;
     });
   }
 
@@ -886,43 +1021,147 @@ class _PlayAlongCardState extends State<_PlayAlongCard> {
   }
 
   void _startGuided() {
+    _feedbackTimer?.cancel();
     _controller.retry(_practiceLevel(widget.demoLevel));
     final order = _computeGuidedOrder();
     setState(() {
       _guided = true;
       _guidedOrder = order;
       _guidedStep = 0;
+      _feedbackMessage = null;
     });
   }
 
+  /// Locked, one-node-at-a-time tap handling for the guided
+  /// walkthrough: only the currently-highlighted node has any effect.
+  /// A wrong tap is rejected outright (the board doesn't change) and
+  /// gets a mode-specific "why not" bubble; a right tap is applied
+  /// immediately and gets a brief "correct" confirmation before the
+  /// highlight advances. While either bubble is showing, taps are
+  /// ignored entirely so the explanation has a moment to land instead
+  /// of being interrupted by a fast double-tap.
   void _handleNodeTap(String nodeId) {
     if (!_controller.isPlaying) return;
     if (_guided) {
+      if (_feedbackMessage != null) return;
       if (_guidedStep >= _guidedOrder.length) return;
       final expected = _guidedOrder[_guidedStep];
       if (nodeId != expected) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(
-              content: Text('Try the highlighted node first.'),
-              duration: Duration(seconds: 1),
-            ),
-          );
+        _showMistakeFeedback(nodeId);
         return;
       }
+      final before = _controller.tappedNodeIds;
+      final newlySatisfied = _newlySatisfied(before, {...before, nodeId});
       _controller.toggleNode(nodeId);
-      setState(() {
-        _guidedStep++;
-        if (_guidedStep >= _guidedOrder.length) {
-          // Walkthrough finished — fall back to the normal pass
-          // banner below instead of staying in "guided" framing.
-          _guided = false;
-        }
-      });
+      _showCorrectFeedback(nodeId, newlySatisfied);
       return;
     }
     _controller.toggleNode(nodeId);
+  }
+
+  /// Applies immediately (the node IS tapped by the time this shows),
+  /// then holds a "CORRECT" bubble explaining what just happened
+  /// before moving the highlight to the next step — or, on the last
+  /// step, dropping out of guided mode so the normal outcome banner
+  /// takes over as the "here's what success looks like" payoff.
+  void _showCorrectFeedback(String nodeId, Set<String> newlySatisfied) {
+    final here = _displayIndexOf(_controller.level, nodeId);
+    final message = newlySatisfied.isEmpty
+        ? 'Correct — node $here tapped.'
+        : 'Correct! Node $here is now supplied, and its reach covers '
+        'node${newlySatisfied.length == 1 ? '' : 's'} '
+        '${_displayIndices(_controller.level, newlySatisfied).join(', ')} '
+        'too.';
+    _feedbackTimer?.cancel();
+    setState(() {
+      _feedbackMessage = message;
+      _feedbackIsMistake = false;
+    });
+    _feedbackTimer = Timer(const Duration(milliseconds: 1100), () {
+      if (!mounted) return;
+      setState(() {
+        _feedbackMessage = null;
+        _guidedStep++;
+        if (_guidedStep >= _guidedOrder.length) {
+          _guided = false;
+        }
+      });
+    });
+  }
+
+  /// Rejects the tap outright (no toggle happens — the board is
+  /// unchanged) and holds a mode-specific "why that's not it" bubble
+  /// for a beat before returning control to the still-current step.
+  void _showMistakeFeedback(String wrongNodeId) {
+    final message = widget.explainMistake(
+      _controller.graph,
+      _controller.level,
+      _controller.tappedNodeIds,
+      wrongNodeId,
+    );
+    _feedbackTimer?.cancel();
+    setState(() {
+      _feedbackMessage = message;
+      _feedbackIsMistake = true;
+    });
+    _feedbackTimer = Timer(const Duration(milliseconds: 1800), () {
+      if (!mounted) return;
+      setState(() => _feedbackMessage = null);
+    });
+  }
+
+  /// One shared assistant-style bubble shape for all three states
+  /// (instruction / correct / mistake) — only the icon, accent color,
+  /// short label, and message text differ, so it reads as the same
+  /// "assistant talking to you" voice throughout the walkthrough
+  /// rather than three visually different UI elements.
+  Widget _buildFeedbackBubble({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required String message,
+  }) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(
+        ConvoySpacing.lg,
+        0,
+        ConvoySpacing.lg,
+        ConvoySpacing.xs,
+      ),
+      padding: const EdgeInsets.all(ConvoySpacing.md),
+      decoration: BoxDecoration(
+        color: ConvoyColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color, width: 1.5),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: ConvoySpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: ConvoyTypography.caption.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  message,
+                  style: ConvoyTypography.body.copyWith(color: color),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -939,14 +1178,38 @@ class _PlayAlongCardState extends State<_PlayAlongCard> {
         outcome == GameplayOutcome.twoStar;
 
     final guidedActive = _guided && _guidedStep < _guidedOrder.length;
+    final expectedNodeId = guidedActive ? _guidedOrder[_guidedStep] : null;
+
+    // Bubble priority: a transient CORRECT/NOT QUITE feedback bubble
+    // (from the tap that just happened) always wins over the forward-
+    // looking instruction bubble, which in turn wins over the final
+    // outcome banner — only one of the three shows at a time.
     String? highlightId;
-    String? guidedExplanation;
-    if (guidedActive) {
-      final nodeId = _guidedOrder[_guidedStep];
+    Widget? bubble;
+    if (_feedbackMessage != null) {
+      // Mid-mistake, the expected node stays highlighted so the
+      // player still knows where to go once the bubble clears; mid-
+      // confirmation the just-tapped node already reads as "tapped"
+      // on the board, so no glow is needed.
+      highlightId = _feedbackIsMistake ? expectedNodeId : null;
+      bubble = _buildFeedbackBubble(
+        icon: _feedbackIsMistake ? Icons.error_outline : Icons.check_circle,
+        color: _feedbackIsMistake ? ConvoyColors.redDecay : widget.content.accentColor,
+        label: _feedbackIsMistake ? 'NOT QUITE' : 'CORRECT',
+        message: _feedbackMessage!,
+      );
+    } else if (guidedActive) {
+      final nodeId = expectedNodeId!;
       highlightId = nodeId;
       final newlySatisfied = _newlySatisfied(tapped, {...tapped, nodeId});
-      guidedExplanation =
-          widget.explainStep(graph, level, tapped, nodeId, newlySatisfied);
+      final explanation =
+      widget.explainStep(graph, level, tapped, nodeId, newlySatisfied);
+      bubble = _buildFeedbackBubble(
+        icon: Icons.touch_app,
+        color: widget.content.accentColor,
+        label: 'TAP NODE ${_displayIndexOf(level, nodeId)}',
+        message: explanation,
+      );
     }
 
     return Column(
@@ -983,36 +1246,8 @@ class _PlayAlongCardState extends State<_PlayAlongCard> {
             ],
           ),
         ),
-        if (guidedExplanation != null)
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.fromLTRB(
-              ConvoySpacing.lg,
-              0,
-              ConvoySpacing.lg,
-              ConvoySpacing.xs,
-            ),
-            padding: const EdgeInsets.all(ConvoySpacing.md),
-            decoration: BoxDecoration(
-              color: ConvoyColors.surfaceElevated,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: widget.content.accentColor, width: 1.5),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.touch_app, size: 18, color: widget.content.accentColor),
-                const SizedBox(width: ConvoySpacing.sm),
-                Expanded(
-                  child: Text(
-                    guidedExplanation,
-                    style: ConvoyTypography.body
-                        .copyWith(color: widget.content.accentColor),
-                  ),
-                ),
-              ],
-            ),
-          )
+        if (bubble != null)
+          bubble
         else if (outcome != GameplayOutcome.playing)
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -1023,7 +1258,8 @@ class _PlayAlongCardState extends State<_PlayAlongCard> {
             ),
             child: Text(
               outcome == GameplayOutcome.threeStar
-                  ? 'Optimal! That\'s a 3-star clear.'
+                  ? 'Solved with the fewest possible taps — that\'s '
+                  'exactly what success looks like here. 3-star clear!'
                   : outcome == GameplayOutcome.twoStar
                   ? 'Solved, one tap over optimal — a 2-star clear.'
                   : 'Out of taps. Hit RESET and try a different set of nodes.',
