@@ -71,21 +71,24 @@ class _ConvoyNodeGlyphState extends State<ConvoyNodeGlyph>
   void initState() {
     super.initState();
     _spinController = AnimationController(
-      // One full turn (0->1 "turns"), played once when the valve
-      // opens — not a repeat() loop, not a partial turn. Slowed to a
-      // calmer 2s per request; ConvoyPipe's fill-sweep duration is
-      // synced to match this (see convoy_pipe.dart), not the other
-      // way around, so the valve finishes turning right as the pipe
-      // finishes coloring in.
+      // Played once when the valve opens — not a repeat() loop.
+      // Synced to 0.75s to match ConvoyPipe's fill-sweep duration
+      // (see convoy_pipe.dart), so the valve finishes turning right
+      // as the pipe finishes coloring in.
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 750),
     );
     // Built once here rather than inline in build() — a fresh
     // CurvedAnimation wrapper allocated on every single build call
     // (this widget rebuilds often; e.g. every gameplay timer tick)
     // still only ever reads the same underlying controller value, but
-    // there's no reason to reallocate it that often.
-    _spin = CurvedAnimation(parent: _spinController, curve: Curves.easeInOut);
+    // there's no reason to reallocate it that often. Eased into a
+    // half turn (0->0.5) rather than a full 360 — at this faster
+    // 0.75s pace a full rotation reads as a frantic whirl; a half
+    // turn still clearly reads as "the valve opened" without it.
+    _spin = Tween<double>(begin: 0, end: 0.5).animate(
+      CurvedAnimation(parent: _spinController, curve: Curves.easeInOut),
+    );
     if (_isLit) _playSpinOnce();
   }
 

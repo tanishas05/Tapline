@@ -77,10 +77,9 @@ class _ConvoyPipeState extends State<ConvoyPipe>
       vsync: this,
       // One-shot 0->1 play per state change, not a repeat() loop — the
       // pipe settles once it's done coloring in, doesn't keep
-      // animating forever. Synced to 2s to match ConvoyNodeGlyph's
-      // (slowed, per request) valve-spin duration, so both finish
-      // together.
-      duration: const Duration(milliseconds: 2000),
+      // animating forever. Synced to 0.75s to match ConvoyNodeGlyph's
+      // valve-spin duration, so both finish together.
+      duration: const Duration(milliseconds: 750),
     )..value = 1;
     _fromColor = _toColor = _colorFor(widget.state);
     _fromWidth = _toWidth = _widthFor(widget.state);

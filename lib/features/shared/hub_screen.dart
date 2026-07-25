@@ -13,7 +13,6 @@ import '../capacity/capacity_level_select_screen.dart';
 import '../classic/classic_level_select_screen.dart';
 import '../signal/signal_level_select_screen.dart';
 import 'achievements_screen.dart';
-import 'demo_screen.dart';
 import 'settings_screen.dart';
 import 'style_guide_screen.dart';
 
@@ -77,52 +76,66 @@ class HubScreen extends ConsumerWidget {
       builder: (context, _) {
         return Scaffold(
           appBar: AppBar(
-            title: Text(
-              'TAPLINE',
-              style: ConvoyTypography.wordmark.copyWith(fontSize: 22),
+            titleSpacing: ConvoySpacing.md,
+            // FittedBox rather than a bare Text: if a future device/
+            // font-scale combination is still tight even after the
+            // trimmed actions below, the wordmark scales down instead
+            // of silently ellipsizing into "TAPLI…" the way it did
+            // before this fix. copyWith only touched fontSize, so the
+            // display-tuned letterSpacing: 6 (meant for the 34px hub
+            // wordmark) was carrying over unscaled into the 22px
+            // AppBar title — on its own that was already ~40px of
+            // dead space between 7 letters, which combined with four
+            // full-size IconButtons is what forced the truncation.
+            title: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'TAPLINE',
+                style: ConvoyTypography.wordmark.copyWith(
+                  fontSize: 22,
+                  letterSpacing: 2,
+                  color: ConvoyColors.textPrimaryFor(Theme.of(context).brightness),
+                ),
+              ),
             ),
+            actionsIconTheme: const IconThemeData(size: 22),
             actions: [
               if (store != null) _CoinBadge(balance: store.coinBalance),
               Builder(
                 builder: (context) {
                   final platformBrightness =
-                  MediaQuery.platformBrightnessOf(context);
+                      MediaQuery.platformBrightnessOf(context);
                   final isDark = themeModeController.isDark(platformBrightness);
-                  return IconButton(
+                  return _CompactIconButton(
                     tooltip: isDark ? 'Light mode' : 'Dark mode',
-                    icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+                    icon: isDark ? Icons.light_mode : Icons.dark_mode,
                     onPressed: () => themeModeController.toggle(platformBrightness),
                   );
                 },
               ),
-              IconButton(
-                tooltip: 'How to play',
-                icon: const Icon(Icons.school),
-                onPressed: () {
-                  Navigator.of(context).pushNamed(DemoScreen.routeName);
-                },
-              ),
-              IconButton(
+              _CompactIconButton(
                 tooltip: 'Achievements',
-                icon: const Icon(Icons.emoji_events),
+                icon: Icons.emoji_events,
                 onPressed: () {
                   Navigator.of(context).pushNamed(AchievementsScreen.routeName);
                 },
               ),
-              IconButton(
+              _CompactIconButton(
                 tooltip: 'Settings',
-                icon: const Icon(Icons.settings),
+                icon: Icons.settings,
                 onPressed: () {
                   Navigator.of(context).pushNamed(SettingsScreen.routeName);
                 },
               ),
-              IconButton(
+              _CompactIconButton(
                 tooltip: 'Style guide (dev)',
-                icon: const Icon(Icons.palette),
+                icon: Icons.palette,
                 onPressed: () {
                   Navigator.of(context).pushNamed(StyleGuideScreen.routeName);
                 },
               ),
+              const SizedBox(width: ConvoySpacing.xs),
             ],
           ),
           body: Stack(
@@ -132,30 +145,49 @@ class HubScreen extends ConsumerWidget {
                 child: ListView(
                   padding: const EdgeInsets.all(ConvoySpacing.lg),
                   children: [
-                    // Signature flourish: the same Pipe component that
-                    // will carry supply between gameplay nodes, threaded
-                    // through the very first screen the player sees.
-                    SizedBox(
-                      height: 40,
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          return ConvoyPipe(
-                            start: const Offset(0, 18),
-                            end: Offset(constraints.maxWidth, 24),
-                            state: PipeState.active,
-                            curvature: 0.12,
-                            baseStrokeWidth: 3,
+                    // Hero banner — the original pipe-maze
+                    // illustration (see PipeMazeArt), full color with
+                    // its little figure. If you'd rather use a real
+                    // photo/artwork file instead, swap the ClipRRect's
+                    // child below for Image.asset('assets/images/
+                    // your_file.png', fit: BoxFit.cover) — the sizing/
+                    // border/clip is already set up to hold either.
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Builder(
+                        builder: (context) {
+                          final brightness = Theme.of(context).brightness;
+                          return Container(
+                            height: 200,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: ConvoyColors.surfaceElevatedFor(brightness),
+                              border: Border.all(
+                                color: ConvoyColors.outlineFor(brightness),
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const PipeMazeArt(rich: true),
                           );
                         },
                       ),
                     ),
-                    const SizedBox(height: ConvoySpacing.sm),
-                    Text('MODE SELECT', style: ConvoyTypography.sectionLabel),
+                    const SizedBox(height: ConvoySpacing.xl),
+                    Builder(
+                      builder: (context) => Text(
+                        'MODE SELECT',
+                        style: ConvoyTypography.sectionLabel.copyWith(
+                          color: ConvoyColors.textSecondaryFor(
+                            Theme.of(context).brightness,
+                          ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: ConvoySpacing.md),
                     ModePanel(
                       title: 'CLASSIC',
                       description:
-                      'Tap the fewest tanks needed to keep every node supplied.',
+                          'Tap the fewest tanks needed to keep every node supplied.',
                       icon: Icons.storage,
                       accentColor: ConvoyColors.amber,
                       onTap: () {
@@ -175,14 +207,14 @@ class HubScreen extends ConsumerWidget {
                     ModePanel(
                       title: 'CAPACITY',
                       description:
-                      'Balance weighted supply and demand across the network.',
+                          'Balance weighted supply and demand across the network.',
                       icon: Icons.speed,
                       accentColor: ConvoyColors.amber,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (context) =>
-                            const CapacityLevelSelectScreen(),
+                                const CapacityLevelSelectScreen(),
                           ),
                         );
                       },
@@ -191,13 +223,13 @@ class HubScreen extends ConsumerWidget {
                       count: levelCounts?[GameMode.capacity],
                       starTotal: _starTotal(capacityTrack, store),
                       maxStars:
-                      capacityTrack == null ? null : capacityTrack.length * 3,
+                          capacityTrack == null ? null : capacityTrack.length * 3,
                     ),
                     const SizedBox(height: ConvoySpacing.md),
                     ModePanel(
                       title: 'SIGNAL',
                       description:
-                      'Find the minimum driver nodes to control the whole grid.',
+                          'Find the minimum driver nodes to control the whole grid.',
                       icon: Icons.settings_input_antenna,
                       accentColor: ConvoyColors.cyan,
                       onTap: () {
@@ -261,7 +293,7 @@ class _TrackProgressCaption extends StatelessWidget {
   Widget build(BuildContext context) {
     if (count == null) return const SizedBox(height: ConvoySpacing.xs);
     final starsText =
-    (starTotal != null && maxStars != null) ? ' \u00b7 $starTotal/$maxStars \u2605' : '';
+        (starTotal != null && maxStars != null) ? ' \u00b7 $starTotal/$maxStars \u2605' : '';
     return Padding(
       padding: const EdgeInsets.only(
         top: ConvoySpacing.xs,
@@ -269,7 +301,9 @@ class _TrackProgressCaption extends StatelessWidget {
       ),
       child: Text(
         '$count LEVEL${count == 1 ? '' : 'S'} LOADED$starsText',
-        style: ConvoyTypography.monoLabel,
+        style: ConvoyTypography.monoLabel.copyWith(
+          color: ConvoyColors.textSecondaryFor(Theme.of(context).brightness),
+        ),
       ),
     );
   }
@@ -279,6 +313,36 @@ class _TrackProgressCaption extends StatelessWidget {
 /// every gameplay screen already reads/writes, just made visible
 /// somewhere a player sees it outside of an active attempt. Purely a
 /// display; nothing here spends or earns coins.
+/// A plain [IconButton] reserves a 48x48 tap target by default. Four
+/// of those in a row is ~200px of AppBar width gone before the title
+/// gets a look-in — this trims the padding/constraints down to a
+/// still-comfortable ~40x40 without losing tap-target accessibility
+/// sizing by much, which is what actually made room for the
+/// "TAPLINE" wordmark to render without truncating.
+class _CompactIconButton extends StatelessWidget {
+  const _CompactIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: tooltip,
+      icon: Icon(icon),
+      onPressed: onPressed,
+      padding: const EdgeInsets.all(6),
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+}
+
 class _CoinBadge extends StatelessWidget {
   const _CoinBadge({required this.balance});
 
