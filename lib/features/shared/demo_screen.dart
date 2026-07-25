@@ -1222,22 +1222,31 @@ class _PlayAlongCardState extends State<_PlayAlongCard> {
             ConvoySpacing.lg,
             ConvoySpacing.xs,
           ),
-          child: Row(
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            runSpacing: 8,
+            spacing: 8,
             children: [
               Text(
-                'TAPS ${_controller.tapsUsed} / ${_controller.maxTaps} '
-                    '(OPTIMAL ${_controller.level.optimum})',
+                'TAPS ${_controller.tapsUsed}/${_controller.maxTaps} '
+                    '(OPT ${_controller.level.optimum})',
                 style: ConvoyTypography.hudMedium,
               ),
-              const Spacer(),
+
               TextButton.icon(
                 onPressed: _guided ? _reset : _startGuided,
                 icon: Icon(
-                  _guided ? Icons.stop_circle_outlined : Icons.auto_awesome,
+                  _guided
+                      ? Icons.stop_circle_outlined
+                      : Icons.auto_awesome,
                   size: 18,
                 ),
-                label: Text(_guided ? 'STOP' : 'WALK ME THROUGH IT'),
+                label: Text(
+                  _guided ? 'STOP' : 'WALKTHROUGH',
+                ),
               ),
+
               TextButton.icon(
                 onPressed: _reset,
                 icon: const Icon(Icons.refresh, size: 18),
