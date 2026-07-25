@@ -19,7 +19,9 @@ enum PipeState { inactive, active, spillover, decaying }
 /// A curved bezier connector between two points, styled per the
 /// Industrial Cartography identity — routed like an engineer drew it,
 /// not ruled with a straight line — and colored/weighted by
-/// [PipeState], animating smoothly between states.
+/// [PipeState], animating between states as a one-time fill that
+/// sweeps from [start] toward [end] rather than snapping instantly or
+/// looping indefinitely.
 ///
 /// [ConvoyPipe] always fills whatever box it's given, so give it
 /// explicit bounds from a parent: a sized [SizedBox]/[AspectRatio], an
@@ -73,7 +75,12 @@ class _ConvoyPipeState extends State<ConvoyPipe>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 320),
+      // One-shot 0->1 play per state change, not a repeat() loop — the
+      // pipe settles once it's done coloring in, doesn't keep
+      // animating forever. Synced to 2s to match ConvoyNodeGlyph's
+      // (slowed, per request) valve-spin duration, so both finish
+      // together.
+      duration: const Duration(milliseconds: 2000),
     )..value = 1;
     _fromColor = _toColor = _colorFor(widget.state);
     _fromWidth = _toWidth = _widthFor(widget.state);
@@ -83,9 +90,9 @@ class _ConvoyPipeState extends State<ConvoyPipe>
   void didUpdateWidget(covariant ConvoyPipe oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.state != widget.state) {
-      // Capture wherever the animation currently is as the new start
-      // point, so re-triggering mid-transition doesn't jump.
-      _fromColor = Color.lerp(_fromColor, _toColor, _controller.value)!;
+      // Whatever's currently on screen becomes the new fill's
+      // starting point, so re-triggering mid-sweep doesn't jump.
+      _fromColor = _currentDisplayColor();
       _fromWidth = _lerpDouble(_fromWidth, _toWidth, _controller.value);
       _toColor = _colorFor(widget.state);
       _toWidth = _widthFor(widget.state);
@@ -95,6 +102,12 @@ class _ConvoyPipeState extends State<ConvoyPipe>
         ..forward();
     }
   }
+
+  /// Where the fill sweep visually is right now, so a second state
+  /// change mid-animation continues smoothly from there rather than
+  /// restarting from whatever the fully-old color was.
+  Color _currentDisplayColor() =>
+      Color.lerp(_fromColor, _toColor, _controller.value)!;
 
   Color _colorFor(PipeState state) {
     switch (state) {
@@ -135,15 +148,16 @@ class _ConvoyPipeState extends State<ConvoyPipe>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
-        final t = _controller.value;
         return SizedBox.expand(
           child: CustomPaint(
             painter: _PipePainter(
               start: widget.start,
               end: widget.end,
               curvature: widget.curvature,
-              color: Color.lerp(_fromColor, _toColor, t)!,
-              strokeWidth: _lerpDouble(_fromWidth, _toWidth, t),
+              fromColor: _fromColor,
+              toColor: _toColor,
+              currentWidth: _lerpDouble(_fromWidth, _toWidth, _controller.value),
+              fillProgress: _controller.value,
               state: widget.state,
               directed: widget.directed,
             ),
@@ -159,8 +173,10 @@ class _PipePainter extends CustomPainter {
     required this.start,
     required this.end,
     required this.curvature,
-    required this.color,
-    required this.strokeWidth,
+    required this.fromColor,
+    required this.toColor,
+    required this.currentWidth,
+    required this.fillProgress,
     required this.state,
     required this.directed,
   });
@@ -168,36 +184,84 @@ class _PipePainter extends CustomPainter {
   final Offset start;
   final Offset end;
   final double curvature;
-  final Color color;
-  final double strokeWidth;
+
+  /// The color the pipe is sweeping FROM (wherever it visually was
+  /// before this state change) and TO (the new state's target color).
+  final Color fromColor;
+  final Color toColor;
+
+  final double currentWidth;
+
+  /// 0..1 — how far the [toColor] fill has swept from [start] toward
+  /// [end] this transition. 0 = fully [fromColor], 1 = fully
+  /// [toColor]. Plays once per state change and stops; does not loop.
+  final double fillProgress;
+
   final PipeState state;
   final bool directed;
 
   @override
   void paint(Canvas canvas, Size size) {
     final path = _buildPath();
+    final tubeRadius = currentWidth * 0.9;
 
-    // Soft outer glow when the pipe is actually carrying something —
-    // a wide, blurred pass underneath everything else, so a live pipe
-    // reads as visibly "powered" rather than just a thicker line.
-    if (state == PipeState.active || state == PipeState.spillover) {
-      final glowPaint = Paint()
-        ..color = color.withValues(alpha: state == PipeState.active ? 0.35 : 0.22)
-        ..strokeWidth = strokeWidth * 2.6
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-      canvas.drawPath(path, glowPaint);
+    // The un-filled remainder, in the OLD color, across the whole
+    // pipe first — the fill overlay drawn on top only needs to cover
+    // the swept portion, not redraw everything.
+    _drawTube(canvas, path, fromColor, tubeRadius, dashed: state == PipeState.decaying);
+
+    // The fill itself: the NEW color, only on the swept sub-path —
+    // this is the actual "coloring in gradually" effect. Once
+    // fillProgress reaches 1 this covers the entire pipe and the base
+    // layer underneath is fully hidden.
+    if (fillProgress > 0) {
+      final metrics = path.computeMetrics().toList();
+      if (metrics.isNotEmpty) {
+        final metric = metrics.first;
+        final filledPath = metric.extractPath(0, fillProgress * metric.length);
+
+        if (state == PipeState.active || state == PipeState.spillover) {
+          final glowPaint = Paint()
+            ..color = toColor.withValues(
+              alpha: state == PipeState.active ? 0.35 : 0.22,
+            )
+            ..strokeWidth = tubeRadius * 2.6
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+          canvas.drawPath(filledPath, glowPaint);
+        }
+
+        _drawTube(
+          canvas,
+          filledPath,
+          toColor,
+          tubeRadius,
+          dashed: state == PipeState.decaying,
+        );
+      }
     }
 
-    // A genuinely dimensional tube: dark outline for edge definition,
-    // a shadow band along one side, the base color as the tube's main
-    // body, and a bright highlight offset toward the OTHER side (not
-    // centered) — mimicking a light source hitting the top of a round
-    // pipe. Centering the highlight (the previous version) reads as
-    // flat; offsetting it is what actually sells roundness.
-    final tubeRadius = strokeWidth * 0.9;
+    if (directed) {
+      _paintArrowhead(canvas, path, toColor);
+    }
+  }
 
+  /// A genuinely dimensional tube segment: dark outline for edge
+  /// definition, a shadow band along one side, the base color as the
+  /// tube's main body, and a bright highlight offset toward the OTHER
+  /// side (not centered) — mimicking a light source hitting the top
+  /// of a round pipe. Centering the highlight reads as flat;
+  /// offsetting it is what actually sells roundness. Factored out so
+  /// both the base (old-color) and fill (new-color, partial-length)
+  /// layers get identical treatment.
+  void _drawTube(
+    Canvas canvas,
+    Path segment,
+    Color color,
+    double tubeRadius, {
+    required bool dashed,
+  }) {
     final outlinePaint = Paint()
       ..color = Color.lerp(color, Colors.black, 0.6)!
       ..strokeWidth = tubeRadius * 2.3
@@ -213,36 +277,32 @@ class _PipePainter extends CustomPainter {
       ..strokeWidth = tubeRadius * 0.7
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
-    final shadowPath = _offsetPath(path, tubeRadius * 0.55);
+    final shadowPath = _offsetPath(segment, tubeRadius * 0.55);
     final highlightPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.85)
       ..strokeWidth = tubeRadius * 0.55
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
-    final highlightPath = _offsetPath(path, -tubeRadius * 0.45);
+    final highlightPath = _offsetPath(segment, -tubeRadius * 0.45);
 
-    if (state == PipeState.decaying) {
-      _paintDashed(canvas, path, outlinePaint);
-      _paintDashed(canvas, path, bodyPaint);
+    if (dashed) {
+      _paintDashed(canvas, segment, outlinePaint);
+      _paintDashed(canvas, segment, bodyPaint);
       _paintDashed(canvas, shadowPath, shadowPaint);
       _paintDashed(canvas, highlightPath, highlightPaint);
     } else {
-      canvas.drawPath(path, outlinePaint);
-      canvas.drawPath(path, bodyPaint);
+      canvas.drawPath(segment, outlinePaint);
+      canvas.drawPath(segment, bodyPaint);
       canvas.drawPath(shadowPath, shadowPaint);
       canvas.drawPath(highlightPath, highlightPaint);
-    }
-
-    if (directed) {
-      _paintArrowhead(canvas, path);
     }
   }
 
   /// Builds a copy of [source] shifted [distance] px perpendicular to
   /// its own local tangent at each sampled point — used to derive the
-  /// two parallel "leads" of the twin-wire look from the single
-  /// center curve, so both leads bow together instead of one being a
-  /// naive straight-line offset that drifts off the real curve.
+  /// shadow/highlight bands from the single center curve, so they bow
+  /// together instead of one being a naive straight-line offset that
+  /// drifts off the real curve.
   Path _offsetPath(Path source, double distance) {
     final result = Path();
     for (final metric in source.computeMetrics()) {
@@ -273,11 +333,7 @@ class _PipePainter extends CustomPainter {
   /// The two cubic-bezier control points for this segment — bowed out
   /// perpendicular to the straight line by [curvature], which is what
   /// keeps every pipe a genuinely routed curve instead of a straight
-  /// ruled line. Factored out of [_buildPath] so the arrowhead can
-  /// reuse [control2] to find the curve's own tangent direction at
-  /// [end], rather than pointing along the straight start->end line
-  /// (which would visibly disagree with the curve itself whenever
-  /// [curvature] bows it any real distance away from that line).
+  /// ruled line.
   ({Offset control1, Offset control2}) _controlPoints() {
     final dx = end.dx - start.dx;
     final dy = end.dy - start.dy;
@@ -305,17 +361,15 @@ class _PipePainter extends CustomPainter {
       );
   }
 
-  /// Placed at the curve's own midpoint rather than near [end] — the
-  /// previous end-anchored placement put every arrow right where all
-  /// of a node's edges converge, exactly the most cluttered, most
-  /// overlapping part of the drawing, which is what made direction
-  /// genuinely hard to read on a busy graph. The middle of a curve's
-  /// open span, away from any node, is uncluttered on every edge by
-  /// construction — nothing else is ever drawn there.
+  /// Placed at the curve's own midpoint rather than near [end] — an
+  /// end-anchored placement puts every arrow right where all of a
+  /// node's edges converge, the most cluttered part of the drawing.
+  /// The middle of a curve's open span is uncluttered on every edge
+  /// by construction — nothing else is ever drawn there.
   static const double _arrowLength = 22;
   static const double _arrowHalfWidth = 12;
 
-  void _paintArrowhead(Canvas canvas, Path path) {
+  void _paintArrowhead(Canvas canvas, Path path, Color arrowColor) {
     final metrics = path.computeMetrics().toList();
     if (metrics.isEmpty) return;
     final metric = metrics.first;
@@ -338,10 +392,10 @@ class _PipePainter extends CustomPainter {
       ..close();
 
     // A slightly larger background-colored outline drawn first, then
-    // the real arrow on top — otherwise an inactive-state arrow (gray,
-    // same as the wire) disappears into a busy tangle of overlapping
-    // twin-lead wires. The outline gives it an edge to read against
-    // regardless of what's crossing behind it.
+    // the real arrow on top — otherwise a gray inactive-state arrow
+    // disappears into a busy tangle of overlapping pipes. The outline
+    // gives it an edge to read against regardless of what's crossing
+    // behind it.
     canvas.drawPath(
       arrow,
       Paint()
@@ -351,7 +405,7 @@ class _PipePainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round,
     );
     canvas.drawPath(arrow, Paint()
-      ..color = color
+      ..color = arrowColor
       ..style = PaintingStyle.fill);
   }
 
@@ -373,8 +427,10 @@ class _PipePainter extends CustomPainter {
     return oldDelegate.start != start ||
         oldDelegate.end != end ||
         oldDelegate.curvature != curvature ||
-        oldDelegate.color != color ||
-        oldDelegate.strokeWidth != strokeWidth ||
+        oldDelegate.fromColor != fromColor ||
+        oldDelegate.toColor != toColor ||
+        oldDelegate.currentWidth != currentWidth ||
+        oldDelegate.fillProgress != fillProgress ||
         oldDelegate.state != state ||
         oldDelegate.directed != directed;
   }

@@ -23,16 +23,18 @@ enum NodeVisualState { inactive, tapped, supplied, decaying }
 /// fill/icon rendering [ConvoyNode] already gets right.
 ///
 /// Renders as a pipe valve wheel (rim + spokes + center hub) —
-/// closed/dim when unlit, open/glowing bright once tapped/supplied —
-/// regardless of the [icon] a caller passes. A lightbulb read as the
-/// wrong metaphor once the rest of the app committed to a plumbing/
-/// pipe visual language (see [PipeMazeArt], [ConvoyPipe]'s tube
-/// rendering); a valve you turn to open the flow fits that world
-/// instead. Hand-drawn with [CustomPaint] rather than a stock icon so
-/// the spoke count/proportions can be tuned precisely. [icon] is kept
+/// closed/dim when unlit, open/glowing bright and slowly turning
+/// once tapped/supplied — regardless of the [icon] a caller passes.
+/// A lightbulb read as the wrong metaphor once the rest of the app
+/// committed to a plumbing/pipe visual language (see [PipeMazeArt],
+/// [ConvoyPipe]'s tube rendering); a valve you turn to open the flow
+/// fits that world instead, and the turning motion once open reads
+/// as "actively passing supply," not just a static state change.
+/// Hand-drawn with [CustomPaint] rather than a stock icon so the
+/// spoke count/proportions can be tuned precisely. [icon] is kept
 /// (rather than removed) purely so existing call sites don't need
 /// updating; it's unused for rendering now.
-class ConvoyNodeGlyph extends StatelessWidget {
+class ConvoyNodeGlyph extends StatefulWidget {
   const ConvoyNodeGlyph({
     super.key,
     required this.icon,
@@ -44,11 +46,78 @@ class ConvoyNodeGlyph extends StatelessWidget {
   final NodeVisualState state;
   final double diameter;
 
+  @override
+  State<ConvoyNodeGlyph> createState() => _ConvoyNodeGlyphState();
+}
+
+class _ConvoyNodeGlyphState extends State<ConvoyNodeGlyph>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _spinController;
+  late final Animation<double> _spin;
+
+  // Explicit latch rather than relying only on comparing old/new
+  // `state` in didUpdateWidget — belt-and-suspenders against a
+  // rebuild somehow re-entering the "just became lit" branch (e.g. if
+  // this Element ever gets recreated mid-game rather than updated,
+  // which reruns initState fresh). Once true, nothing plays another
+  // spin until the node actually goes back to unlit first.
+  bool _hasSpunThisLitSpan = false;
+
   bool get _isLit =>
-      state == NodeVisualState.tapped || state == NodeVisualState.supplied;
+      widget.state == NodeVisualState.tapped ||
+      widget.state == NodeVisualState.supplied;
+
+  @override
+  void initState() {
+    super.initState();
+    _spinController = AnimationController(
+      // One full turn (0->1 "turns"), played once when the valve
+      // opens — not a repeat() loop, not a partial turn. Slowed to a
+      // calmer 2s per request; ConvoyPipe's fill-sweep duration is
+      // synced to match this (see convoy_pipe.dart), not the other
+      // way around, so the valve finishes turning right as the pipe
+      // finishes coloring in.
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    );
+    // Built once here rather than inline in build() — a fresh
+    // CurvedAnimation wrapper allocated on every single build call
+    // (this widget rebuilds often; e.g. every gameplay timer tick)
+    // still only ever reads the same underlying controller value, but
+    // there's no reason to reallocate it that often.
+    _spin = CurvedAnimation(parent: _spinController, curve: Curves.easeInOut);
+    if (_isLit) _playSpinOnce();
+  }
+
+  void _playSpinOnce() {
+    if (_hasSpunThisLitSpan) return;
+    _hasSpunThisLitSpan = true;
+    _spinController
+      ..value = 0
+      ..forward();
+  }
+
+  @override
+  void didUpdateWidget(covariant ConvoyNodeGlyph oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final wasLit = oldWidget.state == NodeVisualState.tapped ||
+        oldWidget.state == NodeVisualState.supplied;
+    if (_isLit && !wasLit) {
+      _playSpinOnce();
+    } else if (!_isLit && wasLit) {
+      _hasSpunThisLitSpan = false;
+      _spinController.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _spinController.dispose();
+    super.dispose();
+  }
 
   Color get _ringColor {
-    switch (state) {
+    switch (widget.state) {
       case NodeVisualState.inactive:
         return ConvoyColors.outline;
       case NodeVisualState.tapped:
@@ -61,7 +130,7 @@ class ConvoyNodeGlyph extends StatelessWidget {
   }
 
   Color get _glyphColor {
-    switch (state) {
+    switch (widget.state) {
       case NodeVisualState.inactive:
         return ConvoyColors.textSecondary;
       case NodeVisualState.tapped:
@@ -78,7 +147,7 @@ class ConvoyNodeGlyph extends StatelessWidget {
   /// everything else, so "covered" and "the reason it's covered"
   /// don't look like the same fact.
   Color get _fillColor {
-    return state == NodeVisualState.tapped
+    return widget.state == NodeVisualState.tapped
         ? ConvoyColors.amber
         : ConvoyColors.surfaceElevated;
   }
@@ -88,8 +157,8 @@ class ConvoyNodeGlyph extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 280),
       curve: Curves.easeOut,
-      width: diameter,
-      height: diameter,
+      width: widget.diameter,
+      height: widget.diameter,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: _fillColor,
@@ -112,9 +181,12 @@ class ConvoyNodeGlyph extends StatelessWidget {
               ]
             : const [],
       ),
-      child: CustomPaint(
-        size: Size.square(diameter * 0.5),
-        painter: _ValveWheelPainter(color: _glyphColor),
+      child: RotationTransition(
+        turns: _spin,
+        child: CustomPaint(
+          size: Size.square(widget.diameter * 0.5),
+          painter: _ValveWheelPainter(color: _glyphColor),
+        ),
       ),
     );
   }

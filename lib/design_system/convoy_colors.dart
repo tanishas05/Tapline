@@ -32,9 +32,9 @@ import 'package:flutter/material.dart';
 ///
 /// The dark palette's values are UNCHANGED from the original
 /// dark-only build — dark mode looks pixel-identical to before this
-/// was added. The light palette ("warm paper", not stark white)
-/// mirrors the one a teammate's parallel prototype (Tapline) already
-/// designed and validated for this same token set.
+/// was added. The light palette is a cool neutral gray-white — not
+/// the warm cream/beige this originally shipped with, swapped out per
+/// request for something cleaner and less "off."
 class ConvoyColors {
   ConvoyColors._();
 
@@ -60,17 +60,17 @@ class ConvoyColors {
   static const Color _redDecayDark = Color(0xFFC1554A);
   static const Color _redDecayDimDark = Color(0xFF4A2B27);
 
-  // ---- Light palette ("warm paper", not stark white) --------------------
-  static const Color _backgroundLight = Color(0xFFF6F3EC);
+  // ---- Light palette (cool neutral gray-white, not warm beige) ----------
+  static const Color _backgroundLight = Color(0xFFF5F6F8);
   static const Color _surfaceLight = Color(0xFFFFFFFF);
-  static const Color _surfaceElevatedLight = Color(0xFFFBF9F4);
-  static const Color _outlineLight = Color(0xFFDDD6C8);
-  static const Color _gridLineLight = Color(0xFFEAE4D6);
+  static const Color _surfaceElevatedLight = Color(0xFFFAFBFC);
+  static const Color _outlineLight = Color(0xFFE1E4E8);
+  static const Color _gridLineLight = Color(0xFFEDEEF1);
   static const Color _textPrimaryLight = Color(0xFF000000);
   static const Color _textSecondaryLight = Color(0xFF2B2B2B);
-  static const Color _textDisabledLight = Color(0xFFB4AFA4);
+  static const Color _textDisabledLight = Color(0xFFAEB4BB);
   static const Color _amberLight = Color(0xFFB4720C);
-  static const Color _amberDimLight = Color(0xFFF3E3C4);
+  static const Color _amberDimLight = Color(0xFFF2E7D3);
   static const Color _cyanLight = Color(0xFF0F7C8C);
   static const Color _cyanDimLight = Color(0xFFD3EEF2);
   static const Color _redDecayLight = Color(0xFFAF3B30);
