@@ -31,6 +31,7 @@ import '../../data/level_schema.dart';
 import '../../data/progress_providers.dart';
 import '../../data/progress_store.dart';
 import '../../data/slot_progress.dart';
+import '../../data/theme_mode_controller.dart';
 import '../../design_system/design_system.dart';
 import '../../engine/engine.dart';
 import '../shared/coin_economy.dart';
@@ -194,7 +195,7 @@ class _ClassicGameplayScreenState extends ConsumerState<ClassicGameplayScreen> {
         OutcomeDialogAction(
           canAffordUnlock
               ? 'UNLOCK NEXT LEVEL ($unlockCost coins)'
-              : 'NOT ENOUGH COINS ($unlockCost)',
+              : 'UNLOCK NEXT LEVEL — NEED $unlockCost COINS',
           canAffordUnlock
               ? () async {
                   await progressStore.spendCoins(unlockCost);
@@ -212,7 +213,7 @@ class _ClassicGameplayScreenState extends ConsumerState<ClassicGameplayScreen> {
         OutcomeDialogAction(
           canAffordSameLayout
               ? 'REPLAY (SAME GRAPH, $replaySameLayoutCost coins)'
-              : 'NOT ENOUGH COINS ($replaySameLayoutCost)',
+              : 'REPLAY (SAME GRAPH) — NEED $replaySameLayoutCost COINS',
           canAffordSameLayout
               ? () =>
                   _spendThen(progressStore, replaySameLayoutCost, _retrySameLayout)
@@ -244,7 +245,7 @@ class _ClassicGameplayScreenState extends ConsumerState<ClassicGameplayScreen> {
         OutcomeDialogAction(
           canAffordSameLayout
               ? 'RETRY (SAME GRAPH, $replaySameLayoutCost coins)'
-              : 'NOT ENOUGH COINS ($replaySameLayoutCost)',
+              : 'RETRY (SAME GRAPH) — NEED $replaySameLayoutCost COINS',
           canAffordSameLayout
               ? () =>
                   _spendThen(progressStore, replaySameLayoutCost, _retrySameLayout)
@@ -391,7 +392,7 @@ class _ClassicGameplayScreenState extends ConsumerState<ClassicGameplayScreen> {
             ? NodeVisualState.tapped
             : covered.contains(graph.indexOf(node.id))
                 ? NodeVisualState.supplied
-                : NodeVisualState.decaying,
+                : NodeVisualState.inactive,
     };
   }
 
@@ -404,9 +405,6 @@ class _ClassicGameplayScreenState extends ConsumerState<ClassicGameplayScreen> {
       if (fromState == NodeVisualState.tapped ||
           toState == NodeVisualState.tapped) {
         state = PipeState.active;
-      } else if (fromState == NodeVisualState.decaying ||
-          toState == NodeVisualState.decaying) {
-        state = PipeState.decaying;
       } else {
         state = PipeState.inactive;
       }
@@ -426,12 +424,27 @@ class _ClassicGameplayScreenState extends ConsumerState<ClassicGameplayScreen> {
     final timeLow = _controller.remainingSeconds <
         _controller.level.timeLimitSeconds * 0.2;
 
+    final themeModeController = ref.watch(themeModeControllerProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           'CLASSIC: ${_controller.level.difficultyTier.name.toUpperCase()}',
           style: ConvoyTypography.panelTitle.copyWith(fontSize: 16),
         ),
+        actions: [
+          Builder(
+            builder: (context) {
+              final platformBrightness = MediaQuery.platformBrightnessOf(context);
+              final isDark = themeModeController.isDark(platformBrightness);
+              return IconButton(
+                tooltip: isDark ? 'Light mode' : 'Dark mode',
+                icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+                onPressed: () => themeModeController.toggle(platformBrightness),
+              );
+            },
+          ),
+        ],
       ),
       body: Stack(
         alignment: Alignment.topCenter,
@@ -481,10 +494,47 @@ class _ClassicGameplayScreenState extends ConsumerState<ClassicGameplayScreen> {
                   ],
                 ),
               ),
+              // Small bulb-and-wire flourish — same visual language as
+              // the hub banner — filling the gap between the header
+              // and the graph rather than leaving it bare.
+              SizedBox(
+                height: 56,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final w = constraints.maxWidth;
+                    final center = Offset(w / 2, 40);
+                    final ends = [
+                      Offset(w * 0.15, 12),
+                      Offset(w * 0.85, 12),
+                    ];
+                    return Stack(
+                      children: [
+                        for (final end in ends)
+                          ConvoyPipe(
+                            start: center,
+                            end: end,
+                            state: PipeState.active,
+                            curvature: 0.15,
+                            baseStrokeWidth: 2,
+                          ),
+                        Positioned(
+                          left: center.dx - 14,
+                          top: center.dy - 14,
+                          child: Icon(
+                            Icons.lightbulb,
+                            color: ConvoyColors.amber,
+                            size: 28,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
               Expanded(
                 child: LevelGraphView(
                   level: _controller.level,
-                  nodeIcon: Icons.storage,
+                  nodeIcon: Icons.propane_tank,
                   nodeStates: nodeStates,
                   pipeStates: pipeStates,
                   highlightedNodeId: _hintedNodeId,

@@ -27,6 +27,7 @@ class ModePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -37,9 +38,9 @@ class ModePanel extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(ConvoySpacing.md),
           decoration: BoxDecoration(
-            color: ConvoyColors.surface,
+            color: ConvoyColors.surfaceFor(brightness),
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: ConvoyColors.outline),
+            border: Border.all(color: ConvoyColors.outlineFor(brightness)),
           ),
           child: Row(
             children: [
@@ -49,7 +50,7 @@ class ModePanel extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: ConvoyColors.surfaceElevated,
+                  color: ConvoyColors.surfaceElevatedFor(brightness),
                   border: Border.all(color: accentColor, width: 2),
                 ),
                 child: Icon(icon, color: accentColor, size: 26),
@@ -60,16 +61,26 @@ class ModePanel extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: ConvoyTypography.panelTitle),
+                    Text(
+                      title,
+                      style: ConvoyTypography.panelTitle.copyWith(
+                        color: ConvoyColors.textPrimaryFor(brightness),
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text(description, style: ConvoyTypography.panelSubtitle),
+                    Text(
+                      description,
+                      style: ConvoyTypography.panelSubtitle.copyWith(
+                        color: ConvoyColors.textSecondaryFor(brightness),
+                      ),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(width: ConvoySpacing.sm),
               Icon(
                 Icons.chevron_right,
-                color: ConvoyColors.textSecondary,
+                color: ConvoyColors.textSecondaryFor(brightness),
               ),
             ],
           ),

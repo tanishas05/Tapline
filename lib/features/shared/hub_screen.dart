@@ -76,10 +76,30 @@ class HubScreen extends ConsumerWidget {
       builder: (context, _) {
         return Scaffold(
           appBar: AppBar(
-            title: Text(
-              'TAPLINE',
-              style: ConvoyTypography.wordmark.copyWith(fontSize: 22),
+            titleSpacing: ConvoySpacing.md,
+            // FittedBox rather than a bare Text: if a future device/
+            // font-scale combination is still tight even after the
+            // trimmed actions below, the wordmark scales down instead
+            // of silently ellipsizing into "TAPLI…" the way it did
+            // before this fix. copyWith only touched fontSize, so the
+            // display-tuned letterSpacing: 6 (meant for the 34px hub
+            // wordmark) was carrying over unscaled into the 22px
+            // AppBar title — on its own that was already ~40px of
+            // dead space between 7 letters, which combined with four
+            // full-size IconButtons is what forced the truncation.
+            title: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'TAPLINE',
+                style: ConvoyTypography.wordmark.copyWith(
+                  fontSize: 22,
+                  letterSpacing: 2,
+                  color: ConvoyColors.textPrimaryFor(Theme.of(context).brightness),
+                ),
+              ),
             ),
+            actionsIconTheme: const IconThemeData(size: 22),
             actions: [
               if (store != null) _CoinBadge(balance: store.coinBalance),
               Builder(
@@ -87,34 +107,35 @@ class HubScreen extends ConsumerWidget {
                   final platformBrightness =
                       MediaQuery.platformBrightnessOf(context);
                   final isDark = themeModeController.isDark(platformBrightness);
-                  return IconButton(
+                  return _CompactIconButton(
                     tooltip: isDark ? 'Light mode' : 'Dark mode',
-                    icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+                    icon: isDark ? Icons.light_mode : Icons.dark_mode,
                     onPressed: () => themeModeController.toggle(platformBrightness),
                   );
                 },
               ),
-              IconButton(
+              _CompactIconButton(
                 tooltip: 'Achievements',
-                icon: const Icon(Icons.emoji_events),
+                icon: Icons.emoji_events,
                 onPressed: () {
                   Navigator.of(context).pushNamed(AchievementsScreen.routeName);
                 },
               ),
-              IconButton(
+              _CompactIconButton(
                 tooltip: 'Settings',
-                icon: const Icon(Icons.settings),
+                icon: Icons.settings,
                 onPressed: () {
                   Navigator.of(context).pushNamed(SettingsScreen.routeName);
                 },
               ),
-              IconButton(
+              _CompactIconButton(
                 tooltip: 'Style guide (dev)',
-                icon: const Icon(Icons.palette),
+                icon: Icons.palette,
                 onPressed: () {
                   Navigator.of(context).pushNamed(StyleGuideScreen.routeName);
                 },
               ),
+              const SizedBox(width: ConvoySpacing.xs),
             ],
           ),
           body: Stack(
@@ -124,25 +145,118 @@ class HubScreen extends ConsumerWidget {
                 child: ListView(
                   padding: const EdgeInsets.all(ConvoySpacing.lg),
                   children: [
-                    // Signature flourish: the same Pipe component that
-                    // will carry supply between gameplay nodes, threaded
-                    // through the very first screen the player sees.
-                    SizedBox(
-                      height: 40,
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          return ConvoyPipe(
-                            start: const Offset(0, 18),
-                            end: Offset(constraints.maxWidth, 24),
-                            state: PipeState.active,
-                            curvature: 0.12,
-                            baseStrokeWidth: 3,
-                          );
-                        },
+                    // Hero banner — reserved space for artwork. Swap
+                    // the LayoutBuilder illustration below for
+                    // Image.asset('assets/images/your_file.png',
+                    // fit: BoxFit.cover) once real artwork is added;
+                    // everything else (rounded clip, border, sizing)
+                    // is already set up to just hold it. Until then,
+                    // this draws a small bulb-and-wires scene using
+                    // the same ConvoyPipe curves gameplay uses, so the
+                    // banner isn't just an empty box.
+                    Builder(
+                      builder: (context) {
+                        final brightness = Theme.of(context).brightness;
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: Container(
+                            height: 200,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: ConvoyColors.surfaceElevatedFor(brightness),
+                              border: Border.all(
+                                color: ConvoyColors.outlineFor(brightness),
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final w = constraints.maxWidth;
+                                const h = 200.0;
+                                final center = Offset(w / 2, h / 2 - 10);
+                                // Four supply nodes wired into the
+                                // bulb, roughly matching how a small
+                                // gameplay graph is laid out.
+                                final ends = [
+                                  Offset(w * 0.12, h * 0.28),
+                                  Offset(w * 0.88, h * 0.24),
+                                  Offset(w * 0.18, h * 0.82),
+                                  Offset(w * 0.82, h * 0.80),
+                                ];
+                                return Stack(
+                                  children: [
+                                    for (final end in ends)
+                                      ConvoyPipe(
+                                        start: center,
+                                        end: end,
+                                        state: PipeState.active,
+                                        curvature: 0.18,
+                                        baseStrokeWidth: 2.5,
+                                      ),
+                                    for (final end in ends)
+                                      Positioned(
+                                        left: end.dx - 8,
+                                        top: end.dy - 8,
+                                        child: Container(
+                                          width: 16,
+                                          height: 16,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: ConvoyColors.surfaceElevatedFor(
+                                              brightness,
+                                            ),
+                                            border: Border.all(
+                                              color: ConvoyColors.amberFor(
+                                                brightness,
+                                              ),
+                                              width: 2,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    Positioned(
+                                      left: center.dx - 26,
+                                      top: center.dy - 26,
+                                      child: Container(
+                                        width: 52,
+                                        height: 52,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: ConvoyColors.surfaceElevatedFor(
+                                            brightness,
+                                          ),
+                                          border: Border.all(
+                                            color: ConvoyColors.amberFor(brightness),
+                                            width: 2,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.lightbulb,
+                                          color: ConvoyColors.amberFor(brightness),
+                                          size: 26,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: ConvoySpacing.xl),
+                    Builder(
+                      builder: (context) => Text(
+                        'MODE SELECT',
+                        style: ConvoyTypography.sectionLabel.copyWith(
+                          color: ConvoyColors.textSecondaryFor(
+                            Theme.of(context).brightness,
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: ConvoySpacing.sm),
-                    Text('MODE SELECT', style: ConvoyTypography.sectionLabel),
                     const SizedBox(height: ConvoySpacing.md),
                     ModePanel(
                       title: 'CLASSIC',
@@ -261,7 +375,9 @@ class _TrackProgressCaption extends StatelessWidget {
       ),
       child: Text(
         '$count LEVEL${count == 1 ? '' : 'S'} LOADED$starsText',
-        style: ConvoyTypography.monoLabel,
+        style: ConvoyTypography.monoLabel.copyWith(
+          color: ConvoyColors.textSecondaryFor(Theme.of(context).brightness),
+        ),
       ),
     );
   }
@@ -271,6 +387,36 @@ class _TrackProgressCaption extends StatelessWidget {
 /// every gameplay screen already reads/writes, just made visible
 /// somewhere a player sees it outside of an active attempt. Purely a
 /// display; nothing here spends or earns coins.
+/// A plain [IconButton] reserves a 48x48 tap target by default. Four
+/// of those in a row is ~200px of AppBar width gone before the title
+/// gets a look-in — this trims the padding/constraints down to a
+/// still-comfortable ~40x40 without losing tap-target accessibility
+/// sizing by much, which is what actually made room for the
+/// "TAPLINE" wordmark to render without truncating.
+class _CompactIconButton extends StatelessWidget {
+  const _CompactIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: tooltip,
+      icon: Icon(icon),
+      onPressed: onPressed,
+      padding: const EdgeInsets.all(6),
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+}
+
 class _CoinBadge extends StatelessWidget {
   const _CoinBadge({required this.balance});
 

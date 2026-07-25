@@ -26,7 +26,11 @@ class ConvoyTypography {
   ConvoyTypography._();
 
   static TextStyle get _technicalBase => GoogleFonts.jetBrainsMono();
-  static TextStyle get _chromeBase => GoogleFonts.overpass();
+  // Bold & playful, per request — Fredoka's chunky rounded letterforms
+  // read as "puzzle game" rather than "productivity app," while still
+  // staying legible at the small HUD/label sizes this gets used at.
+  // Swapped from Inter (clean but neutral/corporate) for that reason.
+  static TextStyle get _chromeBase => GoogleFonts.fredoka();
 
   // ---- Display / wordmark ------------------------------------------------
   static TextStyle get wordmark => _chromeBase.copyWith(
@@ -119,16 +123,32 @@ class ConvoyTypography {
   /// bars, buttons, etc.) that read from `Theme.of(context)` pick up
   /// Convoy's type system automatically, without every widget having
   /// to reference [ConvoyTypography] directly.
-  static TextTheme textTheme() {
+  ///
+  /// Takes an explicit [brightness] rather than relying on the live
+  /// [ConvoyColors.textPrimary]/[ConvoyColors.textSecondary] getters
+  /// baked into wordmark/panelTitle/etc. Those getters read a single
+  /// mutable static field, which is fine for widgets that call them
+  /// fresh on every build — but ConvoyTheme builds ONE ThemeData for
+  /// light and ONE for dark, up front, and a color baked into a
+  /// TextStyle at that point never changes again for the life of that
+  /// ThemeData. Without this, both ThemeData objects silently ended
+  /// up with whichever brightness's colors happened to be active at
+  /// startup, and toggling dark/light left text unreadable in
+  /// whichever mode lost that race — every color below is
+  /// force-overridden to this brightness's palette so that can't
+  /// happen.
+  static TextTheme textTheme(Brightness brightness) {
+    final primary = ConvoyColors.textPrimaryFor(brightness);
+    final secondary = ConvoyColors.textSecondaryFor(brightness);
     return TextTheme(
-      displayLarge: wordmark,
-      titleLarge: panelTitle,
-      titleMedium: panelSubtitle,
-      labelLarge: buttonLabel,
-      bodyLarge: body,
-      bodyMedium: body,
-      bodySmall: caption,
-      labelSmall: sectionLabel,
+      displayLarge: wordmark.copyWith(color: primary),
+      titleLarge: panelTitle.copyWith(color: primary),
+      titleMedium: panelSubtitle.copyWith(color: secondary),
+      labelLarge: buttonLabel.copyWith(color: primary),
+      bodyLarge: body.copyWith(color: primary),
+      bodyMedium: body.copyWith(color: primary),
+      bodySmall: caption.copyWith(color: secondary),
+      labelSmall: sectionLabel.copyWith(color: secondary),
     );
   }
 }

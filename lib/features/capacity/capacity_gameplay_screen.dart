@@ -33,6 +33,7 @@ import '../../data/level_schema.dart';
 import '../../data/progress_providers.dart';
 import '../../data/progress_store.dart';
 import '../../data/slot_progress.dart';
+import '../../data/theme_mode_controller.dart';
 import '../../design_system/design_system.dart';
 import '../../engine/engine.dart';
 import '../shared/coin_economy.dart';
@@ -212,7 +213,7 @@ class _CapacityGameplayScreenState
         OutcomeDialogAction(
           canAffordUnlock
               ? 'UNLOCK NEXT LEVEL ($unlockCost coins)'
-              : 'NOT ENOUGH COINS ($unlockCost)',
+              : 'UNLOCK NEXT LEVEL — NEED $unlockCost COINS',
           canAffordUnlock
               ? () async {
                   await progressStore.spendCoins(unlockCost);
@@ -230,7 +231,7 @@ class _CapacityGameplayScreenState
         OutcomeDialogAction(
           canAffordSameLayout
               ? 'REPLAY (SAME GRAPH, $replaySameLayoutCost coins)'
-              : 'NOT ENOUGH COINS ($replaySameLayoutCost)',
+              : 'REPLAY (SAME GRAPH) — NEED $replaySameLayoutCost COINS',
           canAffordSameLayout
               ? () =>
                   _spendThen(progressStore, replaySameLayoutCost, _retrySameLayout)
@@ -262,7 +263,7 @@ class _CapacityGameplayScreenState
         OutcomeDialogAction(
           canAffordSameLayout
               ? 'RETRY (SAME GRAPH, $replaySameLayoutCost coins)'
-              : 'NOT ENOUGH COINS ($replaySameLayoutCost)',
+              : 'RETRY (SAME GRAPH) — NEED $replaySameLayoutCost COINS',
           canAffordSameLayout
               ? () =>
                   _spendThen(progressStore, replaySameLayoutCost, _retrySameLayout)
@@ -402,7 +403,7 @@ class _CapacityGameplayScreenState
             ? NodeVisualState.tapped
             : capacitySupplyOf(graph, tapped, node.id) >= node.demand - 1e-9
                 ? NodeVisualState.supplied
-                : NodeVisualState.decaying,
+                : NodeVisualState.inactive,
     };
   }
 
@@ -421,9 +422,6 @@ class _CapacityGameplayScreenState
       if (fromState == NodeVisualState.tapped ||
           toState == NodeVisualState.tapped) {
         state = PipeState.spillover;
-      } else if (fromState == NodeVisualState.decaying ||
-          toState == NodeVisualState.decaying) {
-        state = PipeState.decaying;
       } else {
         state = PipeState.inactive;
       }
@@ -443,12 +441,27 @@ class _CapacityGameplayScreenState
     final timeLow = _controller.remainingSeconds <
         _controller.level.timeLimitSeconds * 0.2;
 
+    final themeModeController = ref.watch(themeModeControllerProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           'CAPACITY: ${_controller.level.difficultyTier.name.toUpperCase()}',
           style: ConvoyTypography.panelTitle.copyWith(fontSize: 16),
         ),
+        actions: [
+          Builder(
+            builder: (context) {
+              final platformBrightness = MediaQuery.platformBrightnessOf(context);
+              final isDark = themeModeController.isDark(platformBrightness);
+              return IconButton(
+                tooltip: isDark ? 'Light mode' : 'Dark mode',
+                icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+                onPressed: () => themeModeController.toggle(platformBrightness),
+              );
+            },
+          ),
+        ],
       ),
       body: Stack(
         alignment: Alignment.topCenter,
@@ -496,6 +509,40 @@ class _CapacityGameplayScreenState
                       onPressed: _controller.isPlaying ? _onHintPressed : null,
                     ),
                   ],
+                ),
+              ),
+              SizedBox(
+                height: 56,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final w = constraints.maxWidth;
+                    final center = Offset(w / 2, 40);
+                    final ends = [
+                      Offset(w * 0.15, 12),
+                      Offset(w * 0.85, 12),
+                    ];
+                    return Stack(
+                      children: [
+                        for (final end in ends)
+                          ConvoyPipe(
+                            start: center,
+                            end: end,
+                            state: PipeState.active,
+                            curvature: 0.15,
+                            baseStrokeWidth: 2,
+                          ),
+                        Positioned(
+                          left: center.dx - 14,
+                          top: center.dy - 14,
+                          child: Icon(
+                            Icons.lightbulb,
+                            color: ConvoyColors.amber,
+                            size: 28,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
               Expanded(

@@ -19,6 +19,16 @@ enum NodeVisualState { inactive, tapped, supplied, decaying }
 /// gauge ring and compose its own label (a supply/demand reading
 /// instead of a plain position number) without duplicating the ring/
 /// fill/icon rendering [ConvoyNode] already gets right.
+///
+/// Renders as a lightbulb — outline when unlit, filled and glowing
+/// once tapped/supplied — regardless of the [icon] a caller passes.
+/// Per-mode glyphs (tank, antenna, gauge dial) gave each mode its own
+/// identity, but the whole point of a "bulb and wire" network puzzle
+/// is that every node reads as a light being powered — so this now
+/// commits to that uniformly across Classic/Capacity/Signal rather
+/// than mixing metaphors per mode. [icon] is kept (rather than
+/// removed) purely so existing call sites don't need updating; it's
+/// unused for rendering now.
 class ConvoyNodeGlyph extends StatelessWidget {
   const ConvoyNodeGlyph({
     super.key,
@@ -30,6 +40,12 @@ class ConvoyNodeGlyph extends StatelessWidget {
   final IconData icon;
   final NodeVisualState state;
   final double diameter;
+
+  bool get _isLit =>
+      state == NodeVisualState.tapped || state == NodeVisualState.supplied;
+
+  IconData get _bulbIcon =>
+      _isLit ? Icons.lightbulb : Icons.lightbulb_outline;
 
   Color get _ringColor {
     switch (state) {
@@ -78,18 +94,25 @@ class ConvoyNodeGlyph extends StatelessWidget {
         shape: BoxShape.circle,
         color: _fillColor,
         border: Border.all(color: _ringColor, width: 2),
-        boxShadow: state == NodeVisualState.supplied ||
-                state == NodeVisualState.tapped
+        // A richer, two-layer glow for a lit bulb: a wide soft outer
+        // wash plus a tighter, hotter inner ring, instead of one flat
+        // shadow — reads more like an actual light source.
+        boxShadow: _isLit
             ? [
                 BoxShadow(
-                  color: ConvoyColors.amber.withValues(alpha: 0.35),
-                  blurRadius: 14,
-                  spreadRadius: 1,
+                  color: ConvoyColors.amber.withValues(alpha: 0.25),
+                  blurRadius: 22,
+                  spreadRadius: 4,
+                ),
+                BoxShadow(
+                  color: ConvoyColors.amber.withValues(alpha: 0.45),
+                  blurRadius: 10,
+                  spreadRadius: 0,
                 ),
               ]
             : const [],
       ),
-      child: Icon(icon, color: _glyphColor, size: diameter * 0.42),
+      child: Icon(_bulbIcon, color: _glyphColor, size: diameter * 0.42),
     );
   }
 }

@@ -2,73 +2,59 @@ import 'package:flutter/material.dart';
 
 import '../convoy_colors.dart';
 
-/// The faint graph-paper backdrop behind Convoy's chrome screens — the
-/// "hand-drawn blueprint schematic" half of the Industrial
-/// Cartography identity. Deliberately restrained: thin lines, low
-/// contrast against [ConvoyColors.background], a few coordinate ticks
-/// along the top edge like the margin of an architectural drawing —
-/// never competing with foreground content.
+/// The backdrop behind Convoy's chrome screens. Originally a graph-
+/// paper grid (the "hand-drawn blueprint schematic" half of the
+/// Industrial Cartography identity); replaced with a soft directional
+/// gradient wash instead — same restrained intent (never compete with
+/// foreground content), different texture. Kept the class name and
+/// [Positioned.fill]-in-a-[Stack] usage unchanged so every existing
+/// call site (hub, level select, achievements, settings, style guide,
+/// coming-soon) picks this up automatically with no other edits.
+///
+/// Reads brightness straight from [Theme.of(context)] rather than
+/// [ConvoyColors]'s shared mutable `brightness` field (which most
+/// other widgets in this codebase use). That field is only guaranteed
+/// correct once MaterialApp's own `builder` has run for the frame —
+/// fine for the old hairline grid, where a stale frame was invisible,
+/// but this widget is now a fully opaque full-screen wash, so any
+/// desync instead showed up as the AppBar (theme-driven) and this
+/// background (field-driven) rendering two different brightnesses at
+/// once. Reading `Theme.of(context)` directly removes that race
+/// entirely — it's always exactly what this widget's position in the
+/// tree resolves to, no shared state involved.
 ///
 /// Must be used as a direct child of a [Stack]; it positions itself
 /// with [Positioned.fill].
 class BlueprintGrid extends StatelessWidget {
   const BlueprintGrid({super.key, this.spacing = 28});
 
+  /// Kept for API compatibility with existing call sites
+  /// (`BlueprintGrid(spacing: ...)`); unused now that this paints a
+  /// gradient rather than a grid.
   final double spacing;
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    final background = ConvoyColors.backgroundFor(brightness);
+    final surface = ConvoyColors.surfaceFor(brightness);
     return Positioned.fill(
       child: IgnorePointer(
-        child: CustomPaint(
-          painter: _BlueprintGridPainter(spacing: spacing),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                background,
+                Color.lerp(background, surface, 0.6)!,
+                background,
+              ],
+              stops: const [0.0, 0.55, 1.0],
+            ),
+          ),
         ),
       ),
     );
-  }
-}
-
-class _BlueprintGridPainter extends CustomPainter {
-  _BlueprintGridPainter({required this.spacing});
-
-  final double spacing;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final linePaint = Paint()
-      ..color = ConvoyColors.gridLine
-      ..strokeWidth = 1;
-
-    for (double x = 0; x <= size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), linePaint);
-    }
-    for (double y = 0; y <= size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
-    }
-
-    // Coordinate tick marks along the top edge — every 4th gridline
-    // gets a slightly longer, slightly brighter tick.
-    final tickPaint = Paint()
-      ..color = ConvoyColors.outline.withValues(alpha: 0.6)
-      ..strokeWidth = 1;
-    var i = 0;
-    for (double x = 0; x <= size.width; x += spacing) {
-      if (i % 4 == 0) {
-        canvas.drawLine(Offset(x, 0), Offset(x, 6), tickPaint);
-      }
-      i++;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _BlueprintGridPainter oldDelegate) {
-    // Always repaint rather than diffing fields: this reads
-    // ConvoyColors.gridLine/outline directly inside paint(), which
-    // can change (a theme toggle) without `spacing` changing, so a
-    // spacing-only comparison would miss it and leave the grid on
-    // the old palette until spacing next changes. Cheap at this
-    // scale — a few dozen lines — same call other painters in this
-    // codebase already make.
-    return true;
   }
 }

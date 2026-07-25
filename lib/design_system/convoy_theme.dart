@@ -37,7 +37,7 @@ class ConvoyTheme {
       brightness: brightness,
       scaffoldBackgroundColor: ConvoyColors.backgroundFor(brightness),
       colorScheme: colorScheme,
-      textTheme: ConvoyTypography.textTheme(),
+      textTheme: ConvoyTypography.textTheme(brightness),
 
       // Restrained, amber-tinted tap feedback instead of Material's
       // default grey/white ripple — small detail, but it's the kind

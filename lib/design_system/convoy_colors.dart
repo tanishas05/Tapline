@@ -66,8 +66,8 @@ class ConvoyColors {
   static const Color _surfaceElevatedLight = Color(0xFFFBF9F4);
   static const Color _outlineLight = Color(0xFFDDD6C8);
   static const Color _gridLineLight = Color(0xFFEAE4D6);
-  static const Color _textPrimaryLight = Color(0xFF23262B);
-  static const Color _textSecondaryLight = Color(0xFF6B7078);
+  static const Color _textPrimaryLight = Color(0xFF000000);
+  static const Color _textSecondaryLight = Color(0xFF2B2B2B);
   static const Color _textDisabledLight = Color(0xFFB4AFA4);
   static const Color _amberLight = Color(0xFFB4720C);
   static const Color _amberDimLight = Color(0xFFF3E3C4);
@@ -120,10 +120,14 @@ class ConvoyColors {
       b == Brightness.dark ? _backgroundDark : _backgroundLight;
   static Color surfaceFor(Brightness b) =>
       b == Brightness.dark ? _surfaceDark : _surfaceLight;
+  static Color surfaceElevatedFor(Brightness b) =>
+      b == Brightness.dark ? _surfaceElevatedDark : _surfaceElevatedLight;
   static Color outlineFor(Brightness b) =>
       b == Brightness.dark ? _outlineDark : _outlineLight;
   static Color textPrimaryFor(Brightness b) =>
       b == Brightness.dark ? _textPrimaryDark : _textPrimaryLight;
+  static Color textSecondaryFor(Brightness b) =>
+      b == Brightness.dark ? _textSecondaryDark : _textSecondaryLight;
   static Color amberFor(Brightness b) =>
       b == Brightness.dark ? _amberDark : _amberLight;
   static Color cyanFor(Brightness b) =>

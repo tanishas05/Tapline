@@ -176,21 +176,84 @@ class _PipePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final path = _buildPath();
-    final paint = Paint()
+
+    // Soft outer glow when the wire is actually carrying something —
+    // a wide, blurred pass underneath the wire itself, same trick as
+    // the bulb's own two-layer glow, so a live wire reads as visibly
+    // "hot" rather than just a thicker line.
+    if (state == PipeState.active || state == PipeState.spillover) {
+      final glowPaint = Paint()
+        ..color = color.withValues(alpha: state == PipeState.active ? 0.35 : 0.22)
+        ..strokeWidth = strokeWidth * 2.6
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+      canvas.drawPath(path, glowPaint);
+    }
+
+    // Twin-lead cable look: two thin parallel strokes instead of one
+    // flat line, like an actual lamp cord rather than a schematic
+    // pipe. Offset perpendicular to the curve at a few sampled points
+    // so the two leads stay parallel along the whole bow, not just at
+    // the endpoints.
+    final lead1 = Paint()
       ..color = color
-      ..strokeWidth = strokeWidth
+      ..strokeWidth = strokeWidth * 0.55
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final lead2 = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth * 0.55
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
+    final offsetGap = strokeWidth * 0.55;
+    final leadPath1 = _offsetPath(path, offsetGap);
+    final leadPath2 = _offsetPath(path, -offsetGap);
+
     if (state == PipeState.decaying) {
-      _paintDashed(canvas, path, paint);
+      _paintDashed(canvas, leadPath1, lead1);
+      _paintDashed(canvas, leadPath2, lead2);
     } else {
-      canvas.drawPath(path, paint);
+      canvas.drawPath(leadPath1, lead1);
+      canvas.drawPath(leadPath2, lead2);
     }
 
     if (directed) {
-      _paintArrowhead(canvas);
+      _paintArrowhead(canvas, path);
     }
+  }
+
+  /// Builds a copy of [source] shifted [distance] px perpendicular to
+  /// its own local tangent at each sampled point — used to derive the
+  /// two parallel "leads" of the twin-wire look from the single
+  /// center curve, so both leads bow together instead of one being a
+  /// naive straight-line offset that drifts off the real curve.
+  Path _offsetPath(Path source, double distance) {
+    final result = Path();
+    for (final metric in source.computeMetrics()) {
+      const step = 6.0;
+      var traveled = 0.0;
+      var first = true;
+      while (traveled <= metric.length) {
+        final tangent = metric.getTangentForOffset(traveled);
+        if (tangent == null) {
+          traveled += step;
+          continue;
+        }
+        final normal = Offset(-tangent.vector.dy, tangent.vector.dx);
+        final n = normal.distance == 0 ? Offset.zero : normal / normal.distance;
+        final point = tangent.position + n * distance;
+        if (first) {
+          result.moveTo(point.dx, point.dy);
+          first = false;
+        } else {
+          result.lineTo(point.dx, point.dy);
+        }
+        traveled += step;
+      }
+    }
+    return result;
   }
 
   /// The two cubic-bezier control points for this segment — bowed out
@@ -228,32 +291,52 @@ class _PipePainter extends CustomPainter {
       );
   }
 
-  /// A cubic bezier is tangent to its final control-point segment at
-  /// t=1 — i.e. the curve's true direction at [end] is exactly
-  /// `end - control2`, not `end - start`. Placed [_arrowInset] pixels
-  /// back from [end] along that direction, not right at [end] itself,
-  /// since [end] is a node's CENTER (see LevelGraphView) and the node
-  /// glyph painted on top would otherwise bury the arrowhead entirely.
-  static const double _arrowInset = 34;
-  static const double _arrowLength = 13;
-  static const double _arrowHalfWidth = 7;
+  /// Placed at the curve's own midpoint rather than near [end] — the
+  /// previous end-anchored placement put every arrow right where all
+  /// of a node's edges converge, exactly the most cluttered, most
+  /// overlapping part of the drawing, which is what made direction
+  /// genuinely hard to read on a busy graph. The middle of a curve's
+  /// open span, away from any node, is uncluttered on every edge by
+  /// construction — nothing else is ever drawn there.
+  static const double _arrowLength = 22;
+  static const double _arrowHalfWidth = 12;
 
-  void _paintArrowhead(Canvas canvas) {
-    final tangent = end - _controlPoints().control2;
-    final tangentLength = tangent.distance;
-    if (tangentLength == 0) return; // degenerate segment, nothing to aim
-    final direction = tangent / tangentLength;
+  void _paintArrowhead(Canvas canvas, Path path) {
+    final metrics = path.computeMetrics().toList();
+    if (metrics.isEmpty) return;
+    final metric = metrics.first;
+    final tangent = metric.getTangentForOffset(metric.length / 2);
+    if (tangent == null) return; // degenerate segment, nothing to aim
+
+    final rawVector = tangent.vector;
+    final vectorLength = rawVector.distance;
+    if (vectorLength == 0) return; // degenerate segment, nothing to aim
+    final direction = rawVector / vectorLength;
     final perp = Offset(-direction.dy, direction.dx) * _arrowHalfWidth;
 
-    final tip = end - direction * _arrowInset;
-    final back = tip - direction * _arrowLength;
+    final tip = tangent.position + direction * (_arrowLength / 2);
+    final back = tangent.position - direction * (_arrowLength / 2);
 
-    final path = Path()
+    final arrow = Path()
       ..moveTo(tip.dx, tip.dy)
       ..lineTo((back + perp).dx, (back + perp).dy)
       ..lineTo((back - perp).dx, (back - perp).dy)
       ..close();
-    canvas.drawPath(path, Paint()
+
+    // A slightly larger background-colored outline drawn first, then
+    // the real arrow on top — otherwise an inactive-state arrow (gray,
+    // same as the wire) disappears into a busy tangle of overlapping
+    // twin-lead wires. The outline gives it an edge to read against
+    // regardless of what's crossing behind it.
+    canvas.drawPath(
+      arrow,
+      Paint()
+        ..color = ConvoyColors.background
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeJoin = StrokeJoin.round,
+    );
+    canvas.drawPath(arrow, Paint()
       ..color = color
       ..style = PaintingStyle.fill);
   }
