@@ -5,14 +5,13 @@ import 'convoy_colors.dart';
 
 /// Convoy's two-typeface system.
 ///
-/// - [_technicalBase] (JetBrains Mono) reads like an instrument
+/// - [_technicalBase] (Roboto Mono) reads like an instrument
 ///   readout: HUD numbers, stats, star counts, node/level codes. Used
 ///   with restraint — numbers and short labels, never paragraphs.
-/// - [_chromeBase] (Overpass) is the humanist sans for everything
-///   else. Overpass was originally drawn from U.S. highway signage,
-///   so it carries some "infrastructure" character even in ordinary
-///   body copy — a deliberate pick for this brief, not a default UI
-///   font reached for out of habit.
+/// - [_chromeBase] (Poppins) is the humanist sans for everything
+///   else — headings, body copy, buttons, and (at a heavier weight)
+///   the wordmark. Picked for a playful-casual feel over the earlier
+///   Fredoka/Baloo 2 pairing.
 ///
 /// NOTE: google_fonts fetches + caches these at runtime by default,
 /// which is the simplest path and fine for day-to-day development.
@@ -25,19 +24,12 @@ import 'convoy_colors.dart';
 class ConvoyTypography {
   ConvoyTypography._();
 
-  static TextStyle get _technicalBase => GoogleFonts.jetBrainsMono();
-  // Bold & playful, per request — Fredoka's chunky rounded letterforms
-  // read as "puzzle game" rather than "productivity app," while still
-  // staying legible at the small HUD/label sizes this gets used at.
-  // Swapped from Inter (clean but neutral/corporate) for that reason.
-  static TextStyle get _chromeBase => GoogleFonts.fredoka();
-  // Baloo 2 for the wordmark only — a bold, rounded, chunky display
-  // face with real "game logo" weight, without Orbitron's squared-off
-  // sci-fi/robotic edge (swapped after feedback that Orbitron read
-  // too blocky/robotic for the brief). Rounded terminals keep it
-  // friendly and pair naturally with Fredoka's own rounded body copy,
-  // while still being bold/heavy enough to stand apart as a wordmark.
-  static TextStyle get _displayBase => GoogleFonts.baloo2();
+  static TextStyle get _technicalBase => GoogleFonts.robotoMono();
+  static TextStyle get _chromeBase => GoogleFonts.poppins();
+  // Wordmark uses the same Poppins family as the rest of the chrome,
+  // just heavier — one consistent typeface across the app instead of
+  // a separate display face for the logo alone.
+  static TextStyle get _displayBase => GoogleFonts.poppins();
 
   // ---- Display / wordmark ------------------------------------------------
   static TextStyle get wordmark => _displayBase.copyWith(
@@ -107,7 +99,7 @@ class ConvoyTypography {
       );
 
   /// `height: 1.0` is deliberate, not a stray default. Left unset, a
-  /// [Text] using this style renders at JetBrains Mono's own natural
+  /// [Text] using this style renders at the mono font's own natural
   /// line-box metrics — which run visibly taller than the nominal 11px
   /// fontSize (ascent+descent padding baked into the font itself), not
   /// a fixed, predictable number you can budget layout space against.

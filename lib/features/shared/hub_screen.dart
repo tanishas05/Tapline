@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -51,9 +52,13 @@ import 'style_guide_screen.dart';
 /// The coin balance and utility icons (theme toggle, achievements,
 /// settings, style guide) belong in the AppBar — that's the
 /// conventional, always-visible spot for them, not floating loose
-/// mid-page — so they're back there, just using [_CompactIconButton]/
-/// a trimmed [_CoinBadge] (~40x40 tap targets instead of the default
-/// 48x48) so five items plus the wordmark fit without truncating.
+/// mid-page. The row is kept to the coin badge, a single theme
+/// toggle ([_CompactIconButton], ~40x40 instead of the default
+/// 48x48), and one overflow menu ([_HubOverflowMenu]) holding How to
+/// Play / Achievements / Settings / Style Guide — five separate
+/// icons plus the wordmark was crowding the row and forcing it to
+/// shrink, so only the highest-frequency action (theme) stays as its
+/// own tap target.
 class HubScreen extends ConsumerWidget {
   const HubScreen({super.key});
 
@@ -92,8 +97,8 @@ class HubScreen extends ConsumerWidget {
         return Scaffold(
           appBar: AppBar(
             titleSpacing: ConvoySpacing.md,
-            // FittedBox as a safety net: with the coin badge plus 5
-            // icons back in the actions row (How to Play included),
+            // FittedBox as a safety net: even with the actions row
+            // trimmed to coin badge + theme toggle + overflow menu,
             // this scales the wordmark down instead of silently
             // truncating it on a narrower device, the same failure
             // mode that started this whole thread.
@@ -129,34 +134,7 @@ class HubScreen extends ConsumerWidget {
                   );
                 },
               ),
-              _CompactIconButton(
-                tooltip: 'How to play',
-                icon: Icons.school,
-                onPressed: () {
-                  Navigator.of(context).pushNamed(DemoScreen.routeName);
-                },
-              ),
-              _CompactIconButton(
-                tooltip: 'Achievements',
-                icon: Icons.emoji_events,
-                onPressed: () {
-                  Navigator.of(context).pushNamed(AchievementsScreen.routeName);
-                },
-              ),
-              _CompactIconButton(
-                tooltip: 'Settings',
-                icon: Icons.settings,
-                onPressed: () {
-                  Navigator.of(context).pushNamed(SettingsScreen.routeName);
-                },
-              ),
-              _CompactIconButton(
-                tooltip: 'Style guide (dev)',
-                icon: Icons.palette,
-                onPressed: () {
-                  Navigator.of(context).pushNamed(StyleGuideScreen.routeName);
-                },
-              ),
+              const _HubOverflowMenu(),
               const SizedBox(width: ConvoySpacing.xs),
             ],
           ),
@@ -405,6 +383,65 @@ class _CompactIconButton extends StatelessWidget {
   }
 }
 
+/// Overflow menu replacing four separate AppBar icon buttons (How to
+/// Play, Achievements, Settings, Style Guide) with one "⋮" entry —
+/// see the class doc comment above: five tap targets plus the coin
+/// badge next to the wordmark was forcing everything to shrink. Only
+/// the theme toggle stays outside this menu, since it's the one
+/// action worth a single tap rather than two.
+///
+/// Style Guide is a dev-only screen — it's gated behind [kDebugMode]
+/// so it never appears in a release build's menu at all, rather than
+/// just being visually deprioritized.
+class _HubOverflowMenu extends StatelessWidget {
+  const _HubOverflowMenu();
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<VoidCallback>(
+      tooltip: 'More',
+      icon: const Icon(Icons.more_vert, size: 22),
+      padding: const EdgeInsets.all(6),
+      onSelected: (action) => action(),
+      itemBuilder: (context) => [
+        PopupMenuItem<VoidCallback>(
+          value: () => Navigator.of(context).pushNamed(DemoScreen.routeName),
+          child: const ListTile(
+            leading: Icon(Icons.school),
+            title: Text('How to play'),
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        PopupMenuItem<VoidCallback>(
+          value: () => Navigator.of(context).pushNamed(AchievementsScreen.routeName),
+          child: const ListTile(
+            leading: Icon(Icons.emoji_events),
+            title: Text('Achievements'),
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        PopupMenuItem<VoidCallback>(
+          value: () => Navigator.of(context).pushNamed(SettingsScreen.routeName),
+          child: const ListTile(
+            leading: Icon(Icons.settings),
+            title: Text('Settings'),
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        if (kDebugMode)
+          PopupMenuItem<VoidCallback>(
+            value: () => Navigator.of(context).pushNamed(StyleGuideScreen.routeName),
+            child: const ListTile(
+              leading: Icon(Icons.palette),
+              title: Text('Style guide (dev)'),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 /// Small HUD-style caption under a [ModePanel] showing curated level
 /// count and cumulative star total for that track — informational
 /// only, see [HubScreen]'s doc comment on why this never gates
@@ -440,4 +477,3 @@ class _TrackProgressCaption extends StatelessWidget {
     );
   }
 }
-
