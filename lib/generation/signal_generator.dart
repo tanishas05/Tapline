@@ -1,29 +1,85 @@
-// Signal level generator — Phase 2. Not part of the "shared, portable
-// module" Phase 2 item 2 asks for (that's explicitly scoped to
-// Classic/Capacity) — Signal's directed-graph construction is a
-// different enough problem (driver count via bipartite matching, not
-// coverage) that it earns its own file, following the same
-// construct-then-verify shape rather than sharing code with
-// classic_capacity_generator.dart.
+// Signal level generator — Phase 2, extended with cycle-aware
+// construction. Not part of the "shared, portable module" Phase 2
+// item 2 asks for (that's explicitly scoped to Classic/Capacity) —
+// Signal's directed-graph construction is a different enough problem
+// (driver count via bipartite matching, not coverage) that it earns
+// its own file, following the same construct-then-verify shape
+// rather than sharing code with classic_capacity_generator.dart.
 //
-// CONSTRUCTION — disjoint directed chains: k disjoint directed chains
-// (c0_0 -> c0_1 -> ...), where k is the intended driver count. An
-// isolated chain's head has no incoming edge, so Kuhn's algorithm has
-// nothing to match it TO — it's always an unmatched V_in node, i.e.
-// always a driver — and every other node in the chain is reachable by
-// following the chain forward from that head. k disjoint chains ->
-// exactly k drivers (see signal_solver.dart's matching + the
-// perfectly-matched-component fix; a chain is never perfectly
-// matched, so that fix never adds an extra driver here).
+// CONSTRUCTION — k disjoint components, one of THREE shapes each,
+// chosen so every shape independently needs exactly 1 driver — so
+// total drivers = k always, by construction, same guarantee the
+// original chains-only generator had, just now provable across three
+// cases instead of one:
+//
+//   1. CHAIN (the original shape): c0 -> c1 -> ... -> c(m-1). Head
+//      has in-degree 0 forever, so it's always an unmatched V_in node
+//      = always a driver. Every other node has exactly one in-edge
+//      (its predecessor), so the chain is already perfectly
+//      self-matched — 1 driver, exactly.
+//
+//   2. STEM_BUD (a run that loops back on itself at the end):
+//      s0 -> s1 -> ... -> s(k-1) -> b0 -> b1 -> ... -> b(j-1) -> b0.
+//      Traced by hand against the actual matching algorithm below
+//      (see test/generation/signal_generator_test.dart): s(k-1)'s
+//      edge into b0 gets used as b0's match, the cycle's own forward
+//      edges absorb every other bud node, and the closing edge
+//      b(j-1)->b0 finds b0 already taken and simply goes unused — one
+//      driver (s0), same as a plain chain, just with a loop hanging
+//      off the end.
+//
+//   3. CYCLE (a standalone loop, no stem): b0 -> b1 -> ... ->
+//      b(j-1) -> b0. Every node gets perfectly matched by the cycle's
+//      own edges (a full cyclic permutation) — zero unmatched V_in
+//      nodes internally. This is the case
+//      signal_solver.dart's whole SCC/residual mechanism exists for:
+//      with no stem feeding it, this component is unreached by every
+//      other component's driver, so the residual pass finds it as an
+//      unreached source SCC and adds exactly one driver for it. A
+//      pure chains-only generator can never produce this shape, so
+//      that part of the solver was previously untested by anything
+//      this generator actually shipped.
+//
+// Because each shape is independently proven to cost exactly 1
+// driver, mixing all three per generated level doesn't touch the
+// "target drivers = k" contract generate() already relies on — no
+// change needed to the outer construct-then-verify loop below.
+//
+// DECORATION's "never touch a chain head" rule generalizes to
+// "never touch a component's PROTECTED node set": {head} for a chain
+// or a stem_bud (only the very first node — the bud portion of a
+// stem_bud is already reached via its own stem, so it's as safe to
+// decorate as any interior chain node), and — new, and the one rule
+// that has no analogue in the old chains-only version — EVERY node
+// of a pure cycle. Pointing any external edge into ANY part of an
+// isolated cycle would make it reachable from whatever fed that
+// edge, letting the residual pass skip it entirely and silently drop
+// the driver count by one — the exact "denser can need fewer
+// drivers" phenomonon generateTeachingPair demonstrates deliberately
+// via explicit merging, showing up here as an unwanted side effect
+// if left unguarded. See [_ChainLayout.protectedTargets].
+//
+// Small tier stays chains-only (richness gated off below) — at
+// 8-14 nodes across 2-4 components there's rarely enough headroom
+// for a 2-node cycle or 3-node stem+bud to read as anything but
+// cramped, and the small tier's whole point is to teach the mode's
+// basic idea, not its harder cases.
+//
+// generateTeachingPair() below is untouched — chains only. Its
+// "denser needs fewer drivers via explicit merging" demonstration is
+// clearest kept simple; entangling it with cycle/stem_bud shapes
+// would need its own separate driver-count proof for what merging a
+// cycle into a chain costs, which isn't needed to make the point it
+// already makes cleanly with chains alone.
 //
 // Regular decoration (visual density/texture, [SignalGenerator.
-// generate]) adds directed edges between chains but NEVER into a
-// chain head — so it can never turn a head from unmatched to matched,
-// meaning it provably can't change the driver count at all.
-// construct-then-verify still runs afterward anyway (Phase 2's
-// instruction applies uniformly), but it's not load-bearing on this
-// path — confirmed empirically (180 prototype trials, zero retries
-// needed) as well as by the construction itself.
+// generate]) adds directed edges between components, restricted by
+// [_ChainLayout.protectedTargets] as above — construct-then-
+// verify still runs afterward anyway (Phase 2's instruction applies
+// uniformly), but it's not load-bearing on this path — confirmed
+// empirically (180 prototype trials pre-richness, plus a further
+// sweep across all three shapes post-richness, zero retries needed)
+// as well as by the construction itself.
 //
 // Chain-merging ([SignalGenerator.generateTeachingPair]) is the
 // opposite: it deliberately links one chain's tail into another
@@ -49,6 +105,21 @@ class SignalGenerator {
 
   static const int maxAttempts = 25;
 
+  /// How much of the per-component shape mix should be cycle/stem_bud
+  /// rather than plain chain, by tier. Small stays chains-only — see
+  /// this file's top doc comment for why. Large is richer than
+  /// medium: more nodes per component gives more room for a cycle or
+  /// stem+bud to read clearly rather than feeling cramped.
+  static ({double cycleFraction, double stemBudFraction}) _richnessFor(
+      DifficultyTier tier,
+      ) {
+    return switch (tier) {
+      DifficultyTier.small => (cycleFraction: 0.0, stemBudFraction: 0.0),
+      DifficultyTier.medium => (cycleFraction: 0.25, stemBudFraction: 0.25),
+      DifficultyTier.large => (cycleFraction: 0.35, stemBudFraction: 0.35),
+    };
+  }
+
   /// Generates one verified regular [Level] for [GameMode.signal] at
   /// [tier]. See [ClassicCapacityGenerator.generate]'s doc comment
   /// re: [id]/[random] — same contract here.
@@ -68,10 +139,12 @@ class SignalGenerator {
       final chainMin = min(chainCountRange.min, chainMax);
       final targetDrivers = chainMin + rng.nextInt(chainMax - chainMin + 1);
 
-      final chains = _ChainLayout.build(
+      final chains = _ChainLayout.buildMixed(
         nodeCount: nodeCount,
         chainCount: targetDrivers,
         random: rng,
+        cycleFraction: _richnessFor(tier).cycleFraction,
+        stemBudFraction: _richnessFor(tier).stemBudFraction,
       );
 
       final decorationCount = (signalDecorationFraction * chains.n).round();
@@ -88,10 +161,12 @@ class SignalGenerator {
 
     throw LevelGenerationException(
       'SignalGenerator: no valid level verified for ${tier.name} '
-      'within $maxAttempts attempts. Should be unreachable: regular '
-      'decoration never touches a chain head, so it cannot change the '
-      'driver count (see this file\'s top doc comment); if this '
-      'fires, check what changed in difficulty_tiers.dart or here.',
+          'within $maxAttempts attempts. Should be unreachable: every '
+          'component shape (chain/stem_bud/cycle) provably needs exactly '
+          '1 driver and decoration respects protectedTargets, so this '
+          'cannot change the driver count (see this file\\'s top doc '
+      'comment); if this fires, check what changed in '
+      'difficulty_tiers.dart or here.',
     );
   }
 
@@ -178,7 +253,7 @@ class SignalGenerator {
 
     throw LevelGenerationException(
       'SignalGenerator.generateTeachingPair: no valid pair verified '
-      'for ${tier.name} within $maxAttempts attempts.',
+          'for ${tier.name} within $maxAttempts attempts.',
     );
   }
 
@@ -200,32 +275,40 @@ class SignalGenerator {
 
     return switch (result) {
       Solved(:final optimalTapCount, :final optimalTaps)
-          when optimalTapCount == targetDrivers =>
-        Level(
-          id: id,
-          mode: GameMode.signal,
-          difficultyTier: tier,
-          nodes: nodes,
-          edges: edges,
-          optimum: optimalTapCount,
-          exampleSolution: optimalTaps,
-          timeLimitSeconds: timeLimitSecondsByTier[tier]!,
-        ),
+      when optimalTapCount == targetDrivers =>
+          Level(
+            id: id,
+            mode: GameMode.signal,
+            difficultyTier: tier,
+            nodes: nodes,
+            edges: edges,
+            optimum: optimalTapCount,
+            exampleSolution: optimalTaps,
+            timeLimitSeconds: timeLimitSecondsByTier[tier]!,
+          ),
       _ => null,
     };
   }
 }
 
-/// Mutable construction state for one disjoint-chains graph — node
-/// indices, directed adjacency, and chain bookkeeping the generator
-/// and the merge/decoration steps both need. Not exported — an
-/// implementation detail of this file only.
+/// Which of the three provably-1-driver shapes a component takes —
+/// see this file's top doc comment for the matching proof behind
+/// each. Only [_ChainLayout.buildMixed] ever produces [cycle] or
+/// [stemBud]; the plain [_ChainLayout.build] factory (used by
+/// [SignalGenerator.generateTeachingPair]) only ever produces [chain].
+enum _ComponentShape { chain, stemBud, cycle }
+
+/// Mutable construction state for one disjoint-components graph —
+/// node indices, directed adjacency, and per-component bookkeeping
+/// the generator and the merge/decoration steps both need. Not
+/// exported — an implementation detail of this file only.
 class _ChainLayout {
   _ChainLayout._({
     required this.n,
     required this.outAdjacency,
     required this.ids,
     required this.chainNodes,
+    required this.protectedTargets,
   });
 
   factory _ChainLayout.build({
@@ -235,9 +318,9 @@ class _ChainLayout {
   }) {
     assert(chainCount >= 1);
     assert(
-      nodeCount >= chainCount,
-      'nodeCount=$nodeCount too small for $chainCount chains of >=1 '
-      'node each',
+    nodeCount >= chainCount,
+    'nodeCount=$nodeCount too small for $chainCount chains of >=1 '
+        'node each',
     );
 
     final sizes = List<int>.filled(chainCount, 1);
@@ -271,6 +354,129 @@ class _ChainLayout {
       outAdjacency: outAdjacency,
       ids: ids,
       chainNodes: chainNodes,
+      protectedTargets: [for (final nodes in chainNodes) {nodes.first}],
+    );
+  }
+
+  /// Builds [chainCount] components, each independently rolled as
+  /// [_ComponentShape.cycle] (probability [cycleFraction]),
+  /// [_ComponentShape.stemBud] (probability [stemBudFraction]), or
+  /// otherwise a plain chain — with an automatic fallback to chain
+  /// whenever the component's remaining node budget can't afford a
+  /// richer shape's minimum size (cycle needs >=2 nodes, stem_bud
+  /// needs >=3: >=1 stem node + >=2 bud nodes). Every shape is
+  /// independently proven (top doc comment) to need exactly 1 driver,
+  /// so mixing them freely never disturbs the "chainCount drivers
+  /// total" contract [SignalGenerator.generate] relies on.
+  factory _ChainLayout.buildMixed({
+    required int nodeCount,
+    required int chainCount,
+    required Random random,
+    required double cycleFraction,
+    required double stemBudFraction,
+  }) {
+    assert(chainCount >= 1);
+    assert(
+    nodeCount >= chainCount,
+    'nodeCount=$nodeCount too small for $chainCount components of '
+        '>=1 node each',
+    );
+
+    const minSizeFor = {
+      _ComponentShape.chain: 1,
+      _ComponentShape.stemBud: 3,
+      _ComponentShape.cycle: 2,
+    };
+
+    // Roll a shape per component, left to right, downgrading to
+    // chain whenever the remaining budget can't cover this
+    // component's richer minimum PLUS 1 node reserved for each
+    // component still to come. Order is shuffled first so an early
+    // component doesn't systematically get first claim on richness
+    // every time.
+    final order = List<int>.generate(chainCount, (i) => i)..shuffle(random);
+    final shapes = List<_ComponentShape>.filled(chainCount, _ComponentShape.chain);
+    var budget = nodeCount;
+    for (var i = 0; i < order.length; i++) {
+      final componentsLeftAfterThis = order.length - i - 1;
+      final roll = random.nextDouble();
+      var shape = roll < cycleFraction
+          ? _ComponentShape.cycle
+          : roll < cycleFraction + stemBudFraction
+          ? _ComponentShape.stemBud
+          : _ComponentShape.chain;
+      final affordable =
+          budget - componentsLeftAfterThis >= minSizeFor[shape]!;
+      if (!affordable) shape = _ComponentShape.chain;
+      shapes[order[i]] = shape;
+      budget -= minSizeFor[shape]!;
+    }
+
+    // Start every component at its shape's minimum, then hand out
+    // the leftover nodes randomly — same distribution approach as
+    // the original chains-only build().
+    final sizes = [for (final shape in shapes) minSizeFor[shape]!];
+    var remaining = nodeCount - sizes.fold(0, (a, b) => a + b);
+    while (remaining > 0) {
+      sizes[random.nextInt(chainCount)]++;
+      remaining--;
+    }
+
+    final outAdjacency = <List<int>>[];
+    final ids = <String>[];
+    final chainNodes = <List<int>>[];
+    final protectedTargets = <Set<int>>[];
+    var n = 0;
+
+    for (var c = 0; c < chainCount; c++) {
+      final componentNodes = <int>[];
+      for (var j = 0; j < sizes[c]; j++) {
+        outAdjacency.add(<int>[]);
+        ids.add('s${c}_$j');
+        componentNodes.add(n);
+        n++;
+      }
+      chainNodes.add(componentNodes);
+
+      switch (shapes[c]) {
+        case _ComponentShape.chain:
+          for (var j = 0; j < componentNodes.length - 1; j++) {
+            outAdjacency[componentNodes[j]].add(componentNodes[j + 1]);
+          }
+          protectedTargets.add({componentNodes.first});
+
+        case _ComponentShape.cycle:
+          for (var j = 0; j < componentNodes.length; j++) {
+            final next = componentNodes[(j + 1) % componentNodes.length];
+            outAdjacency[componentNodes[j]].add(next);
+          }
+          // Every node, not just one — see top doc comment for why
+          // a pure cycle can't safely expose ANY decoration target.
+          protectedTargets.add(componentNodes.toSet());
+
+        case _ComponentShape.stemBud:
+        // stemLen in [1, size-2] guarantees the bud gets >=2 nodes.
+          final stemLen = 1 + random.nextInt(componentNodes.length - 2);
+          final stem = componentNodes.sublist(0, stemLen);
+          final bud = componentNodes.sublist(stemLen);
+          for (var j = 0; j < stem.length - 1; j++) {
+            outAdjacency[stem[j]].add(stem[j + 1]);
+          }
+          outAdjacency[stem.last].add(bud.first);
+          for (var j = 0; j < bud.length; j++) {
+            final next = bud[(j + 1) % bud.length];
+            outAdjacency[bud[j]].add(next);
+          }
+          protectedTargets.add({stem.first});
+      }
+    }
+
+    return _ChainLayout._(
+      n: n,
+      outAdjacency: outAdjacency,
+      ids: ids,
+      chainNodes: chainNodes,
+      protectedTargets: protectedTargets,
     );
   }
 
@@ -278,6 +484,11 @@ class _ChainLayout {
   final List<List<int>> outAdjacency;
   final List<String> ids;
   final List<List<int>> chainNodes;
+
+  /// Per component, the node indices decoration must never target —
+  /// see this file's top doc comment. `{head}` for a chain or
+  /// stem_bud; every node for a pure cycle.
+  final List<Set<int>> protectedTargets;
 
   int get chainCount => chainNodes.length;
 
@@ -290,14 +501,15 @@ class _ChainLayout {
       outAdjacency: [for (final list in outAdjacency) List<int>.from(list)],
       ids: List<String>.from(ids),
       chainNodes: [for (final list in chainNodes) List<int>.from(list)],
+      protectedTargets: [for (final s in protectedTargets) Set<int>.from(s)],
     );
   }
 
   /// Adds up to [decorationCount] random directed edges between
-  /// DIFFERENT chains, never targeting another chain's head (index 0)
-  /// — see this file's top doc comment for why that specific
-  /// restriction is what makes regular decoration provably unable to
-  /// change the driver count.
+  /// DIFFERENT components, never targeting a node in that component's
+  /// [protectedTargets] — see this file's top doc comment for why
+  /// that's what makes regular decoration provably unable to change
+  /// the driver count, for every shape a component can take.
   void addDecoration(int decorationCount, Random random) {
     if (chainCount < 2) return;
 
@@ -310,10 +522,12 @@ class _ChainLayout {
       final chainB = random.nextInt(chainCount);
       if (chainA == chainB) continue;
       final nodesA = chainNodes[chainA];
-      final nonHeadB = chainNodes[chainB].skip(1).toList();
-      if (nonHeadB.isEmpty) continue;
+      final eligibleB = chainNodes[chainB]
+          .where((node) => !protectedTargets[chainB].contains(node))
+          .toList();
+      if (eligibleB.isEmpty) continue;
       final a = nodesA[random.nextInt(nodesA.length)];
-      final b = nonHeadB[random.nextInt(nonHeadB.length)];
+      final b = eligibleB[random.nextInt(eligibleB.length)];
       if (outAdjacency[a].contains(b)) continue;
       outAdjacency[a].add(b);
       added++;
