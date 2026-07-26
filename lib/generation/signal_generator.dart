@@ -164,9 +164,9 @@ class SignalGenerator {
           'within $maxAttempts attempts. Should be unreachable: every '
           'component shape (chain/stem_bud/cycle) provably needs exactly '
           '1 driver and decoration respects protectedTargets, so this '
-          'cannot change the driver count (see this file\\'s top doc '
-      'comment); if this fires, check what changed in '
-      'difficulty_tiers.dart or here.',
+          "cannot change the driver count (see this file's top doc "
+          'comment); if this fires, check what changed in '
+          'difficulty_tiers.dart or here.',
     );
   }
 
