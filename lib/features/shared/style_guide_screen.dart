@@ -28,16 +28,16 @@ class _StyleGuideScreenState extends State<StyleGuideScreen> {
   _DemoState _demo = _DemoState.active;
 
   PipeState get _pipeState => switch (_demo) {
-        _DemoState.inactive => PipeState.inactive,
-        _DemoState.active => PipeState.active,
-        _DemoState.decaying => PipeState.decaying,
-      };
+    _DemoState.inactive => PipeState.inactive,
+    _DemoState.active => PipeState.active,
+    _DemoState.decaying => PipeState.decaying,
+  };
 
   NodeVisualState get _nodeState => switch (_demo) {
-        _DemoState.inactive => NodeVisualState.inactive,
-        _DemoState.active => NodeVisualState.supplied,
-        _DemoState.decaying => NodeVisualState.decaying,
-      };
+    _DemoState.inactive => NodeVisualState.inactive,
+    _DemoState.active => NodeVisualState.supplied,
+    _DemoState.decaying => NodeVisualState.decaying,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -171,10 +171,10 @@ class _StyleGuideScreenState extends State<StyleGuideScreen> {
                       Expanded(
                         child: Text(
                           'Not on the shared toggle above: "tapped" is a '
-                          'player-action state, not a supply state, and '
-                          'only applies to nodes. Filled solid so it reads '
-                          'as "active source" against the outline-only '
-                          'ring a merely-supplied node gets.',
+                              'player-action state, not a supply state, and '
+                              'only applies to nodes. Filled solid so it reads '
+                              'as "active source" against the outline-only '
+                              'ring a merely-supplied node gets.',
                           style: ConvoyTypography.caption,
                         ),
                       ),
@@ -192,7 +192,7 @@ class _StyleGuideScreenState extends State<StyleGuideScreen> {
                   child: ModePanel(
                     title: 'CLASSIC',
                     description:
-                        'Tap the fewest tanks needed to keep every node supplied.',
+                    'Tap the fewest tanks needed to keep every node supplied.',
                     icon: Icons.storage,
                     accentColor: ConvoyColors.amber,
                     onTap: () {},
@@ -205,11 +205,11 @@ class _StyleGuideScreenState extends State<StyleGuideScreen> {
                     children: [
                       Text(
                         'The ring is the "read from across the room" '
-                        'signal: how full, what color. The number '
-                        'underneath is the "read up close" signal, the '
-                        'exact supply/demand. A node past ~115% gets an '
-                        'extra glow so "just barely satisfied" and '
-                        '"comfortably supplied" don\'t look identical.',
+                            'signal: how full, what color. The number '
+                            'underneath is the "read up close" signal, the '
+                            'exact supply/demand. A node past ~115% gets an '
+                            'extra glow so "just barely satisfied" and '
+                            '"comfortably supplied" don\'t look identical.',
                         style: ConvoyTypography.caption,
                       ),
                       const SizedBox(height: ConvoySpacing.md),
@@ -217,21 +217,25 @@ class _StyleGuideScreenState extends State<StyleGuideScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           CapacityNodeGauge(
+                            capacity: 4,
                             supply: 2,
                             demand: 10,
                             state: NodeVisualState.decaying,
                           ),
                           CapacityNodeGauge(
+                            capacity: 4,
                             supply: 6,
                             demand: 10,
                             state: NodeVisualState.decaying,
                           ),
                           CapacityNodeGauge(
+                            capacity: 10,
                             supply: 10,
                             demand: 10,
                             state: NodeVisualState.tapped,
                           ),
                           CapacityNodeGauge(
+                            capacity: 15,
                             supply: 15,
                             demand: 10,
                             state: NodeVisualState.supplied,
@@ -251,10 +255,10 @@ class _StyleGuideScreenState extends State<StyleGuideScreen> {
                       const SizedBox(height: ConvoySpacing.md),
                       Text(
                         'Spillover pipes (dimmer, thinner than full '
-                        'flow, since every cross-node contribution in '
-                        'Capacity is the 0.5x mechanic, so pipes never '
-                        'use the full-intensity "active" state Classic '
-                        'does):',
+                            'flow, since every cross-node contribution in '
+                            'Capacity is the 0.5x mechanic, so pipes never '
+                            'use the full-intensity "active" state Classic '
+                            'does):',
                         style: ConvoyTypography.caption,
                       ),
                       const SizedBox(height: ConvoySpacing.sm),
@@ -282,10 +286,10 @@ class _StyleGuideScreenState extends State<StyleGuideScreen> {
                     children: [
                       Text(
                         "Arrowheads sit on the curve's own tangent at "
-                        'the endpoint, pulled back so the node glyph '
-                        "painted on top doesn't bury them; direction "
-                        'is the one thing that has to read at a glance '
-                        'to tell Signal apart from Classic/Capacity.',
+                            'the endpoint, pulled back so the node glyph '
+                            "painted on top doesn't bury them; direction "
+                            'is the one thing that has to read at a glance '
+                            'to tell Signal apart from Classic/Capacity.',
                         style: ConvoyTypography.caption,
                       ),
                       const SizedBox(height: ConvoySpacing.sm),
@@ -423,7 +427,7 @@ class _StateToggle extends StatelessWidget {
           labelStyle: ConvoyTypography.buttonLabel.copyWith(
             fontSize: 12,
             color:
-                selected ? ConvoyColors.background : ConvoyColors.textPrimary,
+            selected ? ConvoyColors.background : ConvoyColors.textPrimary,
           ),
           backgroundColor: ConvoyColors.surface,
           selectedColor: ConvoyColors.amber,
@@ -491,7 +495,7 @@ class _LevelGenerationDemoState extends State<_LevelGenerationDemo> {
       children: [
         Text(
           'Calls the on-device generator directly, the same call the '
-          'retry flow uses, not the offline CLI script.',
+              'retry flow uses, not the offline CLI script.',
           style: ConvoyTypography.caption,
         ),
         const SizedBox(height: ConvoySpacing.md),

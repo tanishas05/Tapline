@@ -106,7 +106,7 @@ class ClassicCapacityGenerator {
       );
 
       final decorationCount =
-          (classicCapacityDecorationFraction * cluster.n).round();
+      (classicCapacityDecorationFraction * cluster.n).round();
       cluster.addLeafDecoration(decorationCount, rng);
 
       final capacity = List<double>.filled(cluster.n, 0);
@@ -121,7 +121,7 @@ class ClassicCapacityGenerator {
         );
       }
 
-      final positions = cluster.layoutPositions();
+      final positions = cluster.layoutPositions(rng);
       final nodes = <GraphNode>[
         for (var i = 0; i < cluster.n; i++)
           GraphNode(
@@ -138,17 +138,17 @@ class ClassicCapacityGenerator {
 
       final level = switch (result) {
         Solved(:final optimalTapCount, :final optimalTaps)
-            when optimalTapCount == targetOptimum =>
-          Level(
-            id: id,
-            mode: mode,
-            difficultyTier: tier,
-            nodes: nodes,
-            edges: edges,
-            optimum: optimalTapCount,
-            exampleSolution: optimalTaps,
-            timeLimitSeconds: timeLimitSecondsByTier[tier]!,
-          ),
+        when optimalTapCount == targetOptimum =>
+            Level(
+              id: id,
+              mode: mode,
+              difficultyTier: tier,
+              nodes: nodes,
+              edges: edges,
+              optimum: optimalTapCount,
+              exampleSolution: optimalTaps,
+              timeLimitSeconds: timeLimitSecondsByTier[tier]!,
+            ),
         _ => null,
       };
       if (level != null) return level;
@@ -156,10 +156,10 @@ class ClassicCapacityGenerator {
 
     throw LevelGenerationException(
       'ClassicCapacityGenerator: no valid level verified for $mode at '
-      '${tier.name} within $maxAttempts attempts. This should be '
-      'unreachable with difficulty_tiers.dart\'s current tunables — '
-      'if it fires, something in that table drifted into unsafe '
-      'territory (see this file\'s doc comment).',
+          '${tier.name} within $maxAttempts attempts. This should be '
+          'unreachable with difficulty_tiers.dart\'s current tunables — '
+          'if it fires, something in that table drifted into unsafe '
+          'territory (see this file\'s doc comment).',
     );
   }
 }
@@ -214,9 +214,9 @@ class _StarClusterLayout {
   }) {
     assert(clusterCount >= 1);
     assert(
-      nodeCount >= clusterCount * 2,
-      'nodeCount=$nodeCount too small for $clusterCount clusters of '
-      '>=2 nodes each',
+    nodeCount >= clusterCount * 2,
+    'nodeCount=$nodeCount too small for $clusterCount clusters of '
+        '>=2 nodes each',
     );
 
     // every cluster starts at the minimum size (hub + 1 leaf); spare
@@ -322,7 +322,27 @@ class _StarClusterLayout {
   /// corner, with pipes running off toward other clusters positioned
   /// hundreds of logical pixels away, most of which land outside the
   /// visible/auto-fit viewport entirely.
-  List<GraphPoint> layoutPositions() {
+  ///
+  /// [random] rotates the cluster-hub ring, and each cluster's own
+  /// leaf ring, by an independent random offset instead of always
+  /// starting every angle at 0. Without this, low counts collapse
+  /// onto an axis rather than filling 2D space: 2 points on a ring
+  /// starting at angle 0 land at exactly 0 and pi — diametrically
+  /// opposite ALONG THE SAME LINE every single time, never rotated —
+  /// and clusterCount is frequently exactly 2 at Small/Medium tiers
+  /// (it equals the level's optimum). The whole graph then comes out
+  /// far wider than it is tall, [LevelGraphView]'s FittedBox scales
+  /// it down to fit that width, and everything shrinks with it —
+  /// nodes, pipes, and the supply/demand labels alike. Confirmed by
+  /// simulating the exact formula: an unrotated 2-cluster/8-node
+  /// layout comes out ~2.5:1 width:height, leaving roughly 3/4 of a
+  /// typical phone gameplay area empty; the same layout with random
+  /// per-cluster rotation comes out close to 1:1, using the space it
+  /// was given instead of a thin horizontal strip of it. The fix costs
+  /// nothing solvability-wise — position has never been solver input
+  /// (see this method's own first line above) — it only touches where
+  /// pixels land on screen.
+  List<GraphPoint> layoutPositions(Random random) {
     const centerX = 500.0;
     const centerY = 500.0;
     const nodeDiameter = 64.0;
@@ -353,7 +373,7 @@ class _StarClusterLayout {
     // ring on both sides) plus a full node's clearance.
     final maxLeafRingRadius = leafRingRadiusByCluster.fold(
       0.0,
-      (a, b) => a > b ? a : b,
+          (a, b) => a > b ? a : b,
     );
     final clusterMinChord = maxLeafRingRadius * 2 + nodeChord;
     final clusterRingRadius = clusterCount <= 1
@@ -362,16 +382,24 @@ class _StarClusterLayout {
 
     final positions = List<GraphPoint?>.filled(n, null);
 
+    // One shared rotation for the cluster-hub ring itself (so hub
+    // placement isn't always pinned to the X axis), plus an
+    // INDEPENDENT rotation per cluster's own leaf ring (so leaf rings
+    // don't all end up parallel to each other, or to the hub ring,
+    // even after the hub ring itself is rotated).
+    final clusterRotation = random.nextDouble() * 2 * pi;
+
     for (var c = 0; c < clusterCount; c++) {
-      final angle = 2 * pi * c / clusterCount;
+      final angle = 2 * pi * c / clusterCount + clusterRotation;
       final hubX = centerX + clusterRingRadius * cos(angle);
       final hubY = centerY + clusterRingRadius * sin(angle);
       positions[hubOfCluster[c]] = GraphPoint(hubX, hubY);
 
       final leaves = leavesOfCluster[c];
       final leafRingRadius = leafRingRadiusByCluster[c];
+      final leafRotation = random.nextDouble() * 2 * pi;
       for (var j = 0; j < leaves.length; j++) {
-        final leafAngle = 2 * pi * j / leaves.length;
+        final leafAngle = 2 * pi * j / leaves.length + leafRotation;
         positions[leaves[j]] = GraphPoint(
           hubX + leafRingRadius * cos(leafAngle),
           hubY + leafRingRadius * sin(leafAngle),

@@ -182,13 +182,13 @@ class _CapacityGameplayScreenState
             if (nextLevel != null)
               OutcomeDialogAction(
                 'NEXT LEVEL',
-                () => _openLevel(nextLevel),
+                    () => _openLevel(nextLevel),
                 primary: true,
               ),
             OutcomeDialogAction('REPLAY (NEW GRAPH)', _retryNewLayout),
             OutcomeDialogAction(
               'LEVEL SELECT',
-              () => Navigator.of(context).pop(),
+                  () => Navigator.of(context).pop(),
             ),
           ],
         );
@@ -214,7 +214,7 @@ class _CapacityGameplayScreenState
 
   Future<void> _handleTwoStarOutcome(ProgressStore progressStore) async {
     final unlockCost =
-        unlockPastTwoStarCostByTier[_controller.level.difficultyTier]!;
+    unlockPastTwoStarCostByTier[_controller.level.difficultyTier]!;
     final canAffordUnlock = progressStore.coinBalance >= unlockCost;
     final canAffordSameLayout =
         progressStore.coinBalance >= replaySameLayoutCost;
@@ -232,11 +232,11 @@ class _CapacityGameplayScreenState
               : 'UNLOCK NEXT LEVEL — NEED $unlockCost COINS',
           canAffordUnlock
               ? () async {
-                  await progressStore.spendCoins(unlockCost);
-                  await progressStore.markPaidPast(widget.slotId);
-                  ref.invalidate(progressStoreProvider);
-                  if (mounted) Navigator.of(context).pop();
-                }
+            await progressStore.spendCoins(unlockCost);
+            await progressStore.markPaidPast(widget.slotId);
+            ref.invalidate(progressStoreProvider);
+            if (mounted) Navigator.of(context).pop();
+          }
               : null,
           primary: true,
         ),
@@ -250,7 +250,7 @@ class _CapacityGameplayScreenState
               : 'REPLAY (SAME GRAPH) — NEED $replaySameLayoutCost COINS',
           canAffordSameLayout
               ? () =>
-                  _spendThen(progressStore, replaySameLayoutCost, _retrySameLayout)
+              _spendThen(progressStore, replaySameLayoutCost, _retrySameLayout)
               : null,
         ),
       ],
@@ -258,9 +258,9 @@ class _CapacityGameplayScreenState
   }
 
   Future<void> _handleFailOutcome(
-    ProgressStore progressStore, {
-    required String title,
-  }) async {
+      ProgressStore progressStore, {
+        required String title,
+      }) async {
     final canAffordSameLayout =
         progressStore.coinBalance >= replaySameLayoutCost;
     await showOutcomeDialog(
@@ -282,7 +282,7 @@ class _CapacityGameplayScreenState
               : 'RETRY (SAME GRAPH) — NEED $replaySameLayoutCost COINS',
           canAffordSameLayout
               ? () =>
-                  _spendThen(progressStore, replaySameLayoutCost, _retrySameLayout)
+              _spendThen(progressStore, replaySameLayoutCost, _retrySameLayout)
               : null,
         ),
       ],
@@ -290,10 +290,10 @@ class _CapacityGameplayScreenState
   }
 
   Future<void> _spendThen(
-    ProgressStore progressStore,
-    int cost,
-    VoidCallback action,
-  ) async {
+      ProgressStore progressStore,
+      int cost,
+      VoidCallback action,
+      ) async {
     final spent = await progressStore.spendCoins(cost);
     if (!spent) return;
     ref.invalidate(progressStoreProvider);
@@ -367,7 +367,7 @@ class _CapacityGameplayScreenState
         title: Text('USE A HINT?', style: ConvoyTypography.panelTitle),
         content: Text(
           'Free hints used up for this layout. $cost coins for one '
-          'more.\n\nBalance: ${progressStore.coinBalance} coins',
+              'more.\n\nBalance: ${progressStore.coinBalance} coins',
           style: ConvoyTypography.body,
         ),
         actions: [
@@ -418,8 +418,8 @@ class _CapacityGameplayScreenState
         node.id: tapped.contains(node.id)
             ? NodeVisualState.tapped
             : capacitySupplyOf(graph, tapped, node.id) >= node.demand - 1e-9
-                ? NodeVisualState.supplied
-                : NodeVisualState.inactive,
+            ? NodeVisualState.supplied
+            : NodeVisualState.inactive,
     };
   }
 
@@ -525,14 +525,14 @@ class _CapacityGameplayScreenState
                   pipeStates: pipeStates,
                   onNodeTap: _controller.isPlaying
                       ? (nodeId) {
-                          setState(() {
-                            _mostUnderSuppliedNodeId = null;
-                            _suggestedTapNodeId = null;
-                          });
-                          hapticNodeTap(ref.read(progressStoreProvider).value);
-                          soundNodeTap(ref.read(progressStoreProvider).value);
-                          _controller.toggleNode(nodeId);
-                        }
+                    setState(() {
+                      _mostUnderSuppliedNodeId = null;
+                      _suggestedTapNodeId = null;
+                    });
+                    hapticNodeTap(ref.read(progressStoreProvider).value);
+                    soundNodeTap(ref.read(progressStoreProvider).value);
+                    _controller.toggleNode(nodeId);
+                  }
                       : (_) {},
                   nodeBuilder: (node, displayIndex, state, onTap) {
                     final supply = capacitySupplyOf(
@@ -541,12 +541,50 @@ class _CapacityGameplayScreenState
                       node.id,
                     );
                     return _CapacityNodeWithHints(
+                      capacity: node.capacity,
                       supply: supply,
                       demand: node.demand,
                       state: state,
                       onTap: onTap,
                       isMostUnderSupplied: node.id == _mostUnderSuppliedNodeId,
                       isSuggestedTap: node.id == _suggestedTapNodeId,
+                    );
+                  },
+                  edgeLabelBuilder: (edge) {
+                    final tapped = _controller.tappedNodeIds;
+                    final fromTapped = tapped.contains(edge.from);
+                    final toTapped = tapped.contains(edge.to);
+                    if (!fromTapped && !toTapped) return null;
+
+                    // capacitySupplyOf's own formula, applied to just
+                    // this one edge's contribution rather than a
+                    // node's total — see capacity_supply.dart's doc
+                    // comment for the shared 0.5x spillover constant.
+                    final fromToContribution = fromTapped
+                        ? 0.5 * _controller.graph.nodeAt(
+                      _controller.graph.indexOf(edge.from),
+                    ).capacity
+                        : null;
+                    final toFromContribution = toTapped
+                        ? 0.5 * _controller.graph.nodeAt(
+                      _controller.graph.indexOf(edge.to),
+                    ).capacity
+                        : null;
+
+                    final String text;
+                    if (fromToContribution != null && toFromContribution != null) {
+                      text = fromToContribution == toFromContribution
+                          ? '+${fromToContribution.round()} each way'
+                          : '+${fromToContribution.round()}/'
+                          '+${toFromContribution.round()}';
+                    } else {
+                      text = '+${(fromToContribution ?? toFromContribution)!.round()}';
+                    }
+                    return ConvoyLabelChip(
+                      text: text,
+                      borderColor: ConvoyColors.amberDim,
+                      style: ConvoyTypography.monoLabel
+                          .copyWith(color: ConvoyColors.amberDim),
                     );
                   },
                 ),
@@ -567,7 +605,7 @@ class _CapacityGameplayScreenState
                     children: [
                       Text(
                         '${minutes.toString().padLeft(2, '0')}:'
-                        '${seconds.toString().padLeft(2, '0')}',
+                            '${seconds.toString().padLeft(2, '0')}',
                         style: ConvoyTypography.hudMedium.copyWith(
                           color: timeLow
                               ? ConvoyColors.redDecay
@@ -632,6 +670,7 @@ class _CapacityGameplayScreenState
 /// breaks that assumption (see the diameter constants below).
 class _CapacityNodeWithHints extends StatelessWidget {
   const _CapacityNodeWithHints({
+    required this.capacity,
     required this.supply,
     required this.demand,
     required this.state,
@@ -640,6 +679,7 @@ class _CapacityNodeWithHints extends StatelessWidget {
     required this.isSuggestedTap,
   });
 
+  final double capacity;
   final double supply;
   final double demand;
   final NodeVisualState state;
@@ -700,6 +740,7 @@ class _CapacityNodeWithHints extends StatelessWidget {
             left: _centeringOffset(_ringDiameter),
             top: _centeringOffset(_ringDiameter),
             child: CapacityNodeGauge(
+              capacity: capacity,
               supply: supply,
               demand: demand,
               state: state,

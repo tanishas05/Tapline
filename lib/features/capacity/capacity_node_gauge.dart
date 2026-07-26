@@ -1,17 +1,36 @@
-// Capacity's node gauge — Phase 4 item 1. Wraps the shared
-// [ConvoyNodeGlyph] (same tapped/supplied/decaying ring language as
-// Classic) in an outer fill ring showing total_supply(v) as a
-// fraction of dem(v), animating smoothly as taps change.
+// Capacity's node gauge — Phase 4 item 1, extended Phase 6 for
+// legibility. Wraps the shared [ConvoyNodeGlyph] (same tapped/
+// supplied/decaying ring language as Classic) in an outer fill ring
+// showing total_supply(v) as a fraction of dem(v), animating smoothly
+// as taps change.
 //
-// LEGIBILITY, not an afterthought: this mode shows two numbers per
-// node (current supply, demand) plus the spillover animation on the
-// pipes, which the brief calls out as the densest of the three modes.
-// The design here is deliberately layered rather than crammed into
-// one glyph: the RING is the "read this from across the room" signal
-// (how full, what color), the TEXT underneath is the "read this up
-// close" signal (the exact numbers) — nobody has to parse a number to
-// tell a node is in trouble, and nobody has to guess a percentage to
-// know exactly how much more supply it needs.
+// LEGIBILITY, not an afterthought: this mode shows THREE numbers per
+// node now — cap(v) (what this node sends OUT if tapped: itself at
+// full strength, each neighbor at half), current supply, and demand —
+// plus the spillover animation on the pipes, which the brief calls
+// out as the densest of the three modes. The design here is
+// deliberately layered rather than crammed into one glyph: the RING
+// is the "read this from across the room" signal (how full, what
+// color), the TEXT underneath is the "read this up close" signal (the
+// exact numbers) — nobody has to parse a number to tell a node is in
+// trouble, and nobody has to guess a percentage to know exactly how
+// much more supply it needs.
+//
+// CAPACITY WAS MISSING ENTIRELY until this pass — the label used to
+// show only supply/demand, which is the OUTPUT of the tap-spillover
+// formula, never the INPUT (each node's own cap(v), the thing that
+// actually determines what a tap sends out). A player could watch the
+// supply number change after a tap but had no way to predict it
+// beforehand, or to tell "this node's capacity" from "this node's
+// demand" when both were just bare numbers with no label distinguish-
+// ing them. The two-line label below fixes both: CAP always visible
+// (not just on tapped nodes — knowing a node's capacity BEFORE
+// tapping it is the whole point), explicitly labeled so it can't be
+// mistaken for demand.
+//
+// Both label lines now use [ConvoyLabelChip] rather than bare Text —
+// see that widget's own doc comment for why an opaque backing matters
+// specifically for this mode's denser boards.
 
 import 'package:flutter/material.dart';
 
@@ -20,6 +39,7 @@ import '../../design_system/design_system.dart';
 class CapacityNodeGauge extends StatelessWidget {
   const CapacityNodeGauge({
     super.key,
+    required this.capacity,
     required this.supply,
     required this.demand,
     required this.state,
@@ -27,6 +47,11 @@ class CapacityNodeGauge extends StatelessWidget {
     this.onTap,
   });
 
+  /// What this node sends out if tapped — itself at full strength,
+  /// each neighbor at half. Shown regardless of tapped state: this is
+  /// the number a player needs BEFORE deciding whether to tap, not
+  /// a result to read afterward.
+  final double capacity;
   final double supply;
   final double demand;
   final NodeVisualState state;
@@ -106,10 +131,24 @@ class CapacityNodeGauge extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            '${supply.round()}/${demand.round()}',
-            style: ConvoyTypography.monoLabel,
-            textAlign: TextAlign.center,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ConvoyLabelChip(
+                text: 'CAP ${capacity.round()}',
+                style: ConvoyTypography.monoLabel
+                    .copyWith(color: ConvoyColors.textSecondary),
+              ),
+              const SizedBox(height: 2),
+              ConvoyLabelChip(
+                text: '${supply.round()}/${demand.round()}',
+                borderColor: _gaugeColor,
+                style: ConvoyTypography.monoLabel.copyWith(
+                  color: _gaugeColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -32,6 +32,8 @@
 // content once the core "can the player see the graph" problem is
 // solid.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../data/level_schema.dart';
@@ -48,6 +50,7 @@ class LevelGraphView extends StatelessWidget {
     required this.onNodeTap,
     this.highlightedNodeId,
     this.nodeBuilder,
+    this.edgeLabelBuilder,
   });
 
   final Level level;
@@ -79,11 +82,26 @@ class LevelGraphView extends StatelessWidget {
   /// null (Classic, Signal), falls back to this widget's own default
   /// ConvoyNode + hint-glow rendering.
   final Widget Function(
-    GraphNode node,
-    int displayIndex,
-    NodeVisualState state,
-    VoidCallback onTap,
-  )? nodeBuilder;
+      GraphNode node,
+      int displayIndex,
+      NodeVisualState state,
+      VoidCallback onTap,
+      )? nodeBuilder;
+
+  /// Optional small label centered on an edge — Capacity mode (Phase
+  /// 4/6 legibility pass) uses this to show the actual spillover
+  /// amount a pipe is currently carrying, which [ConvoyPipe] itself
+  /// has no concept of (it only knows its own [PipeState], a
+  /// four-value enum with no magnitude). Deliberately a separate hook
+  /// rather than a change to [ConvoyPipe]: Classic and Signal have no
+  /// per-edge number to show, and [ConvoyPipe] is a design-system
+  /// primitive shared by all three modes' pipe rendering — adding
+  /// text-measurement/painting concerns to it for one mode's benefit
+  /// would widen what every caller has to reason about. Returns null
+  /// to render no label for that edge (Capacity only labels edges
+  /// touching a currently-tapped node — an inactive edge has nothing
+  /// flowing to put a number on).
+  final Widget? Function(GraphEdge edge)? edgeLabelBuilder;
 
   static String edgeKey(GraphEdge edge) => '${edge.from}|${edge.to}';
 
@@ -142,8 +160,18 @@ class LevelGraphView extends StatelessWidget {
                     ),
                   ),
               for (var i = 0; i < level.nodes.length; i++)
-              if (positions[level.nodes[i].id] != null)
-                _positionedNode(level.nodes[i], i, localOffset, positions),
+                if (positions[level.nodes[i].id] != null)
+                  _positionedNode(level.nodes[i], i, localOffset, positions),
+              if (edgeLabelBuilder != null)
+                for (final edge in level.edges)
+                  if (positions[edge.from] != null &&
+                      positions[edge.to] != null)
+                    if (edgeLabelBuilder!(edge) case final label?)
+                      _positionedEdgeLabel(
+                        localOffset(positions[edge.from]!),
+                        localOffset(positions[edge.to]!),
+                        label,
+                      ),
             ],
           ),
         ),
@@ -152,11 +180,11 @@ class LevelGraphView extends StatelessWidget {
   }
 
   Widget _positionedNode(
-    GraphNode node,
-    int displayIndex,
-    Offset Function(GraphPoint) localOffset,
-    Map<String, GraphPoint> positions,
-  ) {
+      GraphNode node,
+      int displayIndex,
+      Offset Function(GraphPoint) localOffset,
+      Map<String, GraphPoint> positions,
+      ) {
     final offset = localOffset(positions[node.id]!);
     final state = nodeStates[node.id] ?? NodeVisualState.inactive;
     final onTap = () => onNodeTap(node.id);
@@ -226,6 +254,46 @@ class LevelGraphView extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Same default curvature ConvoyPipe itself uses when this widget's
+  /// edges loop constructs one (no curvature override is ever passed
+  /// there) — kept in sync by hand since [edgeLabelBuilder] needs to
+  /// know where the curve actually bows to in order to center a label
+  /// on it, and [ConvoyPipe] doesn't expose its computed path back
+  /// out for a caller to query.
+  static const double _defaultPipeCurvature = 0.22;
+
+  /// The same cubic-bezier midpoint [ConvoyPipe]'s own painter
+  /// computes internally for its arrowhead placement (see
+  /// convoy_pipe.dart's `_controlPoints`/`_paintArrowhead`) —
+  /// duplicated rather than shared because the real one is private to
+  /// that file's [CustomPainter], and it's a handful of lines of pure
+  /// geometry, not the kind of logic worth widening ConvoyPipe's
+  /// public surface to expose.
+  static Offset _pipeMidpoint(Offset start, Offset end) {
+    final dx = end.dx - start.dx;
+    final dy = end.dy - start.dy;
+    final length = math.sqrt(dx * dx + dy * dy);
+    final normal =
+    length == 0 ? const Offset(0, 0) : Offset(-dy, dx) / length;
+    final bow = normal * (length * _defaultPipeCurvature);
+    final c1 = Offset(start.dx + dx * 0.25, start.dy + dy * 0.25) + bow;
+    final c2 = Offset(start.dx + dx * 0.75, start.dy + dy * 0.75) + bow;
+    // Cubic bezier B(0.5) = 0.125*P0 + 0.375*P1 + 0.375*P2 + 0.125*P3.
+    return start * 0.125 + c1 * 0.375 + c2 * 0.375 + end * 0.125;
+  }
+
+  Widget _positionedEdgeLabel(Offset start, Offset end, Widget label) {
+    final mid = _pipeMidpoint(start, end);
+    return Positioned(
+      left: mid.dx,
+      top: mid.dy,
+      child: FractionalTranslation(
+        translation: const Offset(-0.5, -0.5),
+        child: label,
       ),
     );
   }
