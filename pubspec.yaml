@@ -36,6 +36,12 @@ dependencies:
   # outcome_dialog.dart / each gameplay screen's ConfettiController.
   confetti: ^0.7.0
 
+  # Real win/fail sound effects (assets/sounds/) — see sound.dart.
+  # Node-tap feedback stays on the built-in SystemSound (no player
+  # needed for that one), so this is only pulled in for the two
+  # custom clips.
+  audioplayers: ^6.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -67,3 +73,4 @@ flutter:
     - assets/levels/signal/small/
     - assets/levels/signal/medium/
     - assets/levels/signal/large/
+    - assets/sounds/

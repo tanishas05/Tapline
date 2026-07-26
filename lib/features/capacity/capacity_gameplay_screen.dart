@@ -40,6 +40,8 @@ import '../shared/coin_badge.dart';
 import '../shared/coin_economy.dart';
 import '../shared/gameplay_controller.dart';
 import '../shared/gameplay_notifications.dart';
+import '../shared/haptics.dart';
+import '../shared/sound.dart';
 import '../shared/hint_button.dart';
 import '../shared/level_graph_view.dart';
 import '../shared/onboarding_overlay.dart';
@@ -123,6 +125,18 @@ class _CapacityGameplayScreenState
     _handlingOutcome = true;
     final progressStore = await ref.read(progressStoreProvider.future);
     if (!mounted) return;
+
+    if (outcome == GameplayOutcome.threeStar) {
+      hapticSuccess(progressStore);
+      soundSuccess(progressStore);
+    } else if (outcome == GameplayOutcome.twoStar) {
+      hapticFailure(progressStore);
+      soundFailure(progressStore);
+    } else if (outcome == GameplayOutcome.failTaps ||
+        outcome == GameplayOutcome.failTime) {
+      hapticFailure(progressStore);
+      soundFailure(progressStore);
+    }
 
     switch (outcome) {
       case GameplayOutcome.threeStar:
@@ -515,6 +529,8 @@ class _CapacityGameplayScreenState
                             _mostUnderSuppliedNodeId = null;
                             _suggestedTapNodeId = null;
                           });
+                          hapticNodeTap(ref.read(progressStoreProvider).value);
+                          soundNodeTap(ref.read(progressStoreProvider).value);
                           _controller.toggleNode(nodeId);
                         }
                       : (_) {},

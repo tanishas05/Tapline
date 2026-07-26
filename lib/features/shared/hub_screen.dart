@@ -181,6 +181,7 @@ class HubScreen extends ConsumerWidget {
                       count: levelCounts?[GameMode.classic],
                       starTotal: _starTotal(classicTrack, store),
                       maxStars: classicTrack == null ? null : classicTrack.length * 3,
+                      accentColor: ConvoyColors.amber,
                     ),
                     const SizedBox(height: ConvoySpacing.md),
                     ModePanel(
@@ -203,6 +204,7 @@ class HubScreen extends ConsumerWidget {
                       starTotal: _starTotal(capacityTrack, store),
                       maxStars:
                           capacityTrack == null ? null : capacityTrack.length * 3,
+                      accentColor: ConvoyColors.amber,
                     ),
                     const SizedBox(height: ConvoySpacing.md),
                     ModePanel(
@@ -223,6 +225,7 @@ class HubScreen extends ConsumerWidget {
                       count: levelCounts?[GameMode.signal],
                       starTotal: _starTotal(signalTrack, store),
                       maxStars: signalTrack == null ? null : signalTrack.length * 3,
+                      accentColor: ConvoyColors.cyan,
                     ),
                   ],
                 ),
@@ -447,32 +450,71 @@ class _HubOverflowMenu extends StatelessWidget {
 /// only, see [HubScreen]'s doc comment on why this never gates
 /// anything. Blank while loading rather than a spinner, same
 /// reasoning as the Phase 2 level-count-only version this replaces.
+///
+/// Adds a slim fill bar under the text so the star total reads at a
+/// glance instead of requiring the "X/Y" fraction to be parsed, plus
+/// a small "complete" badge once every star in the track is earned —
+/// display only, same as the text it sits beside; still never gates
+/// anything, per the class doc comment on [HubScreen].
 class _TrackProgressCaption extends StatelessWidget {
   const _TrackProgressCaption({
     required this.count,
     required this.starTotal,
     required this.maxStars,
+    required this.accentColor,
   });
 
   final int? count;
   final int? starTotal;
   final int? maxStars;
+  final Color accentColor;
 
   @override
   Widget build(BuildContext context) {
     if (count == null) return const SizedBox(height: ConvoySpacing.xs);
-    final starsText =
-        (starTotal != null && maxStars != null) ? ' \u00b7 $starTotal/$maxStars \u2605' : '';
+    final brightness = Theme.of(context).brightness;
+    final hasStars = starTotal != null && maxStars != null && maxStars! > 0;
+    final starsText = hasStars ? ' \u00b7 $starTotal/$maxStars \u2605' : '';
+    final isComplete = hasStars && starTotal == maxStars;
+    final fraction = hasStars ? (starTotal! / maxStars!).clamp(0.0, 1.0) : 0.0;
     return Padding(
       padding: const EdgeInsets.only(
         top: ConvoySpacing.xs,
         left: ConvoySpacing.xs,
       ),
-      child: Text(
-        '$count LEVEL${count == 1 ? '' : 'S'} LOADED$starsText',
-        style: ConvoyTypography.monoLabel.copyWith(
-          color: ConvoyColors.textSecondaryFor(Theme.of(context).brightness),
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '$count LEVEL${count == 1 ? '' : 'S'} LOADED$starsText',
+                style: ConvoyTypography.monoLabel.copyWith(
+                  color: ConvoyColors.textSecondaryFor(brightness),
+                ),
+              ),
+              if (isComplete) ...[
+                const SizedBox(width: ConvoySpacing.xs),
+                Icon(Icons.check_circle, size: 12, color: accentColor),
+              ],
+            ],
+          ),
+          if (hasStars) ...[
+            const SizedBox(height: 4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: SizedBox(
+                height: 3,
+                width: 96,
+                child: LinearProgressIndicator(
+                  value: fraction,
+                  backgroundColor: ConvoyColors.outlineFor(brightness),
+                  valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
