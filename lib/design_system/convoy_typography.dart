@@ -31,9 +31,16 @@ class ConvoyTypography {
   // staying legible at the small HUD/label sizes this gets used at.
   // Swapped from Inter (clean but neutral/corporate) for that reason.
   static TextStyle get _chromeBase => GoogleFonts.fredoka();
+  // Baloo 2 for the wordmark only — a bold, rounded, chunky display
+  // face with real "game logo" weight, without Orbitron's squared-off
+  // sci-fi/robotic edge (swapped after feedback that Orbitron read
+  // too blocky/robotic for the brief). Rounded terminals keep it
+  // friendly and pair naturally with Fredoka's own rounded body copy,
+  // while still being bold/heavy enough to stand apart as a wordmark.
+  static TextStyle get _displayBase => GoogleFonts.baloo2();
 
   // ---- Display / wordmark ------------------------------------------------
-  static TextStyle get wordmark => _chromeBase.copyWith(
+  static TextStyle get wordmark => _displayBase.copyWith(
         fontSize: 34,
         fontWeight: FontWeight.w800,
         letterSpacing: 6,

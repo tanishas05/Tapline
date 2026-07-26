@@ -75,9 +75,9 @@ class _StyleGuideScreenState extends State<StyleGuideScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _TypeSample(
-                        'wordmark · Overpass ExtraBold',
+                        'wordmark · Baloo 2 ExtraBold',
                         ConvoyTypography.wordmark,
-                        'TAPLINE',
+                        'TapLine',
                       ),
                       _TypeSample(
                         'panelTitle · Overpass Bold',

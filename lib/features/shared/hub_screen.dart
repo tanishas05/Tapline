@@ -13,6 +13,7 @@ import '../capacity/capacity_level_select_screen.dart';
 import '../classic/classic_level_select_screen.dart';
 import '../signal/signal_level_select_screen.dart';
 import 'achievements_screen.dart';
+import 'coin_badge.dart';
 import 'demo_screen.dart';
 import 'settings_screen.dart';
 import 'style_guide_screen.dart';
@@ -100,7 +101,7 @@ class HubScreen extends ConsumerWidget {
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(
-                'TAPLINE',
+                'TapLine',
                 style: ConvoyTypography.wordmark.copyWith(
                   fontSize: 20,
                   letterSpacing: 2,
@@ -110,7 +111,13 @@ class HubScreen extends ConsumerWidget {
             ),
             actionsIconTheme: const IconThemeData(size: 22),
             actions: [
-              if (store != null) _CoinBadge(balance: store.coinBalance),
+              if (store != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: ConvoySpacing.sm,
+                  ),
+                  child: CoinBadge(balance: store.coinBalance),
+                ),
               Builder(
                 builder: (context) {
                   final platformBrightness = MediaQuery.platformBrightnessOf(context);
@@ -434,41 +441,3 @@ class _TrackProgressCaption extends StatelessWidget {
   }
 }
 
-/// Coin balance badge — the same [ProgressStore.coinBalance] every
-/// gameplay screen already reads/writes, just made visible somewhere
-/// a player sees it outside of an active attempt. Purely a display;
-/// nothing here spends or earns coins.
-class _CoinBadge extends StatelessWidget {
-  const _CoinBadge({required this.balance});
-
-  final int balance;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: ConvoySpacing.sm),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: ConvoyColors.surfaceElevated,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: ConvoyColors.amber),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.circle,
-                size: 10,
-                color: ConvoyColors.amber,
-              ),
-              const SizedBox(width: 6),
-              Text('$balance', style: ConvoyTypography.hudMedium),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

@@ -33,9 +33,11 @@ import '../../data/slot_progress.dart';
 import '../../data/theme_mode_controller.dart';
 import '../../design_system/design_system.dart';
 import '../../engine/engine.dart';
+import '../shared/coin_badge.dart';
 import '../shared/coin_economy.dart';
 import '../shared/gameplay_controller.dart';
 import '../shared/gameplay_notifications.dart';
+import '../shared/hint_button.dart';
 import '../shared/level_graph_view.dart';
 import '../shared/onboarding_overlay.dart';
 import '../shared/outcome_dialog.dart';
@@ -443,6 +445,7 @@ class _SignalGameplayScreenState extends ConsumerState<SignalGameplayScreen> {
         _controller.level.timeLimitSeconds * 0.2;
 
     final themeModeController = ref.watch(themeModeControllerProvider);
+    final progressStore = ref.watch(progressStoreProvider).value;
 
     return Scaffold(
       appBar: AppBar(
@@ -477,10 +480,11 @@ class _SignalGameplayScreenState extends ConsumerState<SignalGameplayScreen> {
                   vertical: ConvoySpacing.sm,
                 ),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           'DRIVERS ${_controller.tapsUsed} / ${_controller.maxTaps}',
@@ -493,23 +497,8 @@ class _SignalGameplayScreenState extends ConsumerState<SignalGameplayScreen> {
                       ],
                     ),
                     const Spacer(),
-                    Text(
-                      '${minutes.toString().padLeft(2, '0')}:'
-                      '${seconds.toString().padLeft(2, '0')}',
-                      style: ConvoyTypography.hudMedium.copyWith(
-                        color: timeLow
-                            ? ConvoyColors.redDecay
-                            : ConvoyColors.textPrimary,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      tooltip: 'Hint '
-                          '(${_controller.freeHintsRemaining} free left)',
-                      icon: const Icon(Icons.lightbulb_outline),
-                      color: ConvoyColors.amber,
-                      onPressed: _controller.isPlaying ? _onHintPressed : null,
-                    ),
+                    if (progressStore != null)
+                      CoinBadge(balance: progressStore.coinBalance),
                   ],
                 ),
               ),
@@ -531,6 +520,40 @@ class _SignalGameplayScreenState extends ConsumerState<SignalGameplayScreen> {
                           _controller.toggleNode(nodeId);
                         }
                       : (_) {},
+                ),
+              ),
+              // Bottom bar: timer (left) + hint (right), below the
+              // graph — split from the top HUD bar entirely per
+              // feedback, so the gameplay area sits between two
+              // clearly separate bars instead of one crowded strip.
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: ConvoySpacing.lg,
+                    vertical: ConvoySpacing.sm,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        '${minutes.toString().padLeft(2, '0')}:'
+                        '${seconds.toString().padLeft(2, '0')}',
+                        style: ConvoyTypography.hudMedium.copyWith(
+                          color: timeLow
+                              ? ConvoyColors.redDecay
+                              : ConvoyColors.textPrimary,
+                        ),
+                      ),
+                      const Spacer(),
+                      HintButton(
+                        freeHintsRemaining: _controller.freeHintsRemaining,
+                        hintCoinCost: hintCoinCost,
+                        enabled: _controller.isPlaying,
+                        onPressed: _onHintPressed,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
