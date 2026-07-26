@@ -223,7 +223,7 @@ class _ClassicDemoTab extends ConsumerWidget {
   static final _steps = [
     _ConceptStep(
       title: 'Tanks & pipes',
-      body: 'Every mode uses a network like this one — tanks connected by '
+      body: 'Every mode uses a network like this one, tanks connected by '
           'pipes. Right now nothing is supplied.',
       illustration: _illustration,
       tappedIds: const {},
@@ -231,13 +231,13 @@ class _ClassicDemoTab extends ConsumerWidget {
     _ConceptStep(
       title: 'Tap to supply',
       body: 'Tap a tank to supply it. Supply spreads to every tank it\'s '
-          'directly connected to — but no further than that.',
+          'directly connected to, but no further than that.',
       illustration: _illustration,
       tappedIds: const {'n1'},
     ),
     _ConceptStep(
       title: 'Fewest taps wins',
-      body: 'A tank two pipes away from a tap — or not connected at all — '
+      body: 'A tank two pipes away from a tap or not connected at all,'
           'stays unsupplied unless it gets a tap of its own. Goal: supply '
           'every tank using the fewest taps possible. Here, two taps cover '
           'all four.',
@@ -260,12 +260,12 @@ class _ClassicDemoTab extends ConsumerWidget {
         if (newlySatisfied.isEmpty) {
           return 'Tap node $here. Its neighbors are already covered by '
               'another tap in this solution, but node $here itself still '
-              'needs a supply — so it has to be tapped directly.';
+              'needs a supply, so it has to be tapped directly.';
         }
         final labels = _displayIndices(level, newlySatisfied);
         final plural = labels.length == 1 ? '' : 's';
         return 'Tap node $here. It supplies itself and reaches '
-            '${labels.length} more node$plural through its pipes — '
+            '${labels.length} more node$plural through its pipes,'
             'node$plural ${labels.join(', ')}.';
       },
       explainMistake: (graph, level, tapped, wrongNodeId) {
@@ -274,7 +274,7 @@ class _ClassicDemoTab extends ConsumerWidget {
             _classicNodeStates(graph, level, tapped)[wrongNodeId] ==
                 NodeVisualState.supplied;
         if (alreadySupplied) {
-          return 'Node $here is already supplied by an earlier tap — '
+          return 'Node $here is already supplied by an earlier tap,'
               'tapping it again would waste a tap. A common Classic '
               'mistake: retapping tanks that are already covered instead '
               'of the ones still empty.';
@@ -326,7 +326,7 @@ class _CapacityDemoTab extends ConsumerWidget {
     _ConceptStep(
       title: 'Capacity & demand',
       body: 'Tanks here have a capacity and a demand. Supply must meet '
-          'demand — just existing on the network isn\'t enough.',
+          'demand, just existing on the network isn\'t enough.',
       illustration: _illustration,
       tappedIds: const {},
     ),
@@ -340,8 +340,8 @@ class _CapacityDemoTab extends ConsumerWidget {
     ),
     _ConceptStep(
       title: 'Fewest taps wins',
-      body: 'If spillover isn\'t enough — or a tank isn\'t connected to '
-          'anything tapped — it needs a tap of its own. Goal: meet every '
+      body: 'If spillover isn\'t enough, or a tank isn\'t connected to '
+          'anything tapped, it needs a tap of its own. Goal: meet every '
           'tank\'s demand with the fewest taps possible.',
       illustration: _illustration,
       tappedIds: const {'n1', 'n3'},
@@ -375,14 +375,14 @@ class _CapacityDemoTab extends ConsumerWidget {
             _capacityNodeStates(graph, level, tapped)[wrongNodeId] ==
                 NodeVisualState.supplied;
         if (alreadyMet) {
-          return 'Node $here already has its demand met from spillover — '
+          return 'Node $here already has its demand met from spillover, '
               'tapping it directly would waste a tap. A common Capacity '
               'mistake: tapping tanks that don\'t need it instead of '
               'ones still short.';
         }
         return 'Node $here isn\'t the most efficient tap here. A common '
             'Capacity mistake is forgetting spillover is only HALF a '
-            'tapped tank\'s capacity — distant tanks usually still need '
+            'tapped tank\'s capacity, distant tanks usually still need '
             'their own tap.';
       },
     );
@@ -413,21 +413,21 @@ class _SignalDemoTab extends ConsumerWidget {
   static final _steps = [
     _ConceptStep(
       title: 'One-way pipes',
-      body: 'Signal pipes only run one direction — the arrow matters. '
+      body: 'Signal pipes only run one direction, the arrow matters. '
           'Nothing is under control yet.',
       illustration: _illustration,
       tappedIds: const {},
     ),
     _ConceptStep(
       title: 'Control spreads forward',
-      body: 'Tap a tank to broadcast control forward along the arrows — '
+      body: 'Tap a tank to broadcast control forward along the arrows, '
           'through as many hops as the pipes allow, not just one.',
       illustration: _illustration,
       tappedIds: const {'n1'},
     ),
     _ConceptStep(
       title: 'Driver nodes',
-      body: 'A tank nothing else points to can never be reached — it '
+      body: 'A tank nothing else points to can never be reached, it '
           'must be tapped directly. These are called driver nodes. Goal: '
           'control the whole grid with the fewest driver taps possible.',
       illustration: _illustration,
@@ -448,13 +448,13 @@ class _SignalDemoTab extends ConsumerWidget {
         final here = _displayIndexOf(level, nodeId);
         if (newlySatisfied.isEmpty) {
           return 'Tap node $here. It\'s one of this level\'s minimum '
-              'driver nodes — required for full control even though its '
+              'driver nodes, required for full control even though its '
               'reach overlaps with an earlier tap.';
         }
         final labels = _displayIndices(level, newlySatisfied);
         final plural = labels.length == 1 ? '' : 's';
         return 'Tap node $here. Signal now reaches node$plural '
-            '${labels.join(', ')} — no other driver node in this '
+            '${labels.join(', ')}, no other driver node in this '
             'solution can reach ${labels.length == 1 ? 'it' : 'them'}.';
       },
       explainMistake: (graph, level, tapped, wrongNodeId) {
@@ -464,12 +464,12 @@ class _SignalDemoTab extends ConsumerWidget {
                 NodeVisualState.supplied;
         if (alreadyReached) {
           return 'Node $here is already under control from an earlier '
-              'tap — a common Signal mistake is re-tapping a reached '
+              'tap, a common Signal mistake is re-tapping a reached '
               'tank instead of finding the next driver node.';
         }
         return 'Node $here isn\'t one of this level\'s minimum driver '
             'nodes. A common Signal mistake is tapping whatever LOOKS '
-            'busiest — what actually matters is whether anything points '
+            'busiest, what actually matters is whether anything points '
             'TO it. Nodes nothing points to must be driven directly.';
       },
     );
@@ -596,8 +596,8 @@ Map<String, PipeState> _signalPipeStates(
 }
 
 /// One page of the instructional wizard: a short idea plus a static,
-/// hand-picked illustration of it. Never interactive — onNodeTap is a
-/// no-op — this is purely "look at this," the practice page at the
+/// hand-picked illustration of it. Never interactive, onNodeTap is a
+/// no-op, this is purely "look at this," the practice page at the
 /// end of the wizard is where the player actually taps anything.
 class _ConceptStep {
   const _ConceptStep({
@@ -1067,7 +1067,7 @@ class _PlayAlongCardState extends State<_PlayAlongCard> {
   void _showCorrectFeedback(String nodeId, Set<String> newlySatisfied) {
     final here = _displayIndexOf(_controller.level, nodeId);
     final message = newlySatisfied.isEmpty
-        ? 'Correct — node $here tapped.'
+        ? 'Correct! node $here tapped.'
         : 'Correct! Node $here is now supplied, and its reach covers '
         'node${newlySatisfied.length == 1 ? '' : 's'} '
         '${_displayIndices(_controller.level, newlySatisfied).join(', ')} '
@@ -1267,10 +1267,10 @@ class _PlayAlongCardState extends State<_PlayAlongCard> {
             ),
             child: Text(
               outcome == GameplayOutcome.threeStar
-                  ? 'Solved with the fewest possible taps — that\'s '
+                  ? 'Solved with the fewest possible taps that\'s '
                   'exactly what success looks like here. 3-star clear!'
                   : outcome == GameplayOutcome.twoStar
-                  ? 'Solved, one tap over optimal — a 2-star clear.'
+                  ? 'Solved, one tap over optimal, a 2-star clear.'
                   : 'Out of taps. Hit RESET and try a different set of nodes.',
               style: ConvoyTypography.caption.copyWith(
                 color: isFail
