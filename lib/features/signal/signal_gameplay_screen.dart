@@ -496,23 +496,47 @@ class _SignalGameplayScreenState extends ConsumerState<SignalGameplayScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'DRIVERS ${_controller.tapsUsed} / ${_controller.maxTaps}',
-                          style: ConvoyTypography.hudMedium,
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'DRIVERS ${_controller.tapsUsed} / ${_controller.maxTaps}',
+                              style: ConvoyTypography.hudMedium,
+                            ),
+                            Text(
+                              'OPTIMAL: ${_controller.level.optimum}',
+                              style: ConvoyTypography.caption,
+                            ),
+                          ],
                         ),
-                        Text(
-                          'OPTIMAL: ${_controller.level.optimum}',
-                          style: ConvoyTypography.caption,
-                        ),
-                      ],
+                      ),
                     ),
-                    const Spacer(),
-                    if (progressStore != null)
-                      CoinBadge(balance: progressStore.coinBalance),
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: Text(
+                          '${minutes.toString().padLeft(2, '0')}:'
+                          '${seconds.toString().padLeft(2, '0')}',
+                          style: ConvoyTypography.hudMedium.copyWith(
+                            color: timeLow
+                                ? ConvoyColors.redDecay
+                                : ConvoyColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: progressStore != null
+                            ? CoinBadge(balance: progressStore.coinBalance)
+                            : const SizedBox.shrink(),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -538,10 +562,9 @@ class _SignalGameplayScreenState extends ConsumerState<SignalGameplayScreen> {
                       : (_) {},
                 ),
               ),
-              // Bottom bar: timer (left) + hint (right), below the
-              // graph — split from the top HUD bar entirely per
-              // feedback, so the gameplay area sits between two
-              // clearly separate bars instead of one crowded strip.
+              // Bottom bar: hint only, centered — timer moved up into
+              // the top HUD row (see above) per feedback, so this bar
+              // now just anchors the hint action below the graph.
               SafeArea(
                 top: false,
                 child: Padding(
@@ -549,26 +572,13 @@ class _SignalGameplayScreenState extends ConsumerState<SignalGameplayScreen> {
                     horizontal: ConvoySpacing.lg,
                     vertical: ConvoySpacing.sm,
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        '${minutes.toString().padLeft(2, '0')}:'
-                        '${seconds.toString().padLeft(2, '0')}',
-                        style: ConvoyTypography.hudMedium.copyWith(
-                          color: timeLow
-                              ? ConvoyColors.redDecay
-                              : ConvoyColors.textPrimary,
-                        ),
-                      ),
-                      const Spacer(),
-                      HintButton(
-                        freeHintsRemaining: _controller.freeHintsRemaining,
-                        hintCoinCost: hintCoinCost,
-                        enabled: _controller.isPlaying,
-                        onPressed: _onHintPressed,
-                      ),
-                    ],
+                  child: Center(
+                    child: HintButton(
+                      freeHintsRemaining: _controller.freeHintsRemaining,
+                      hintCoinCost: hintCoinCost,
+                      enabled: _controller.isPlaying,
+                      onPressed: _onHintPressed,
+                    ),
                   ),
                 ),
               ),
