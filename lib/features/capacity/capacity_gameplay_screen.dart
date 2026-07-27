@@ -347,6 +347,41 @@ class _CapacityGameplayScreenState
     _controller.retry(_controller.level);
   }
 
+  /// Long-press popup content for [node] — the itemized version of
+  /// the always-visible supply/demand number, replacing the always-on
+  /// per-edge chips (Phase 6 legibility pass; see the nodeBuilder doc
+  /// comment in build() for why those got removed). Labels neighbors
+  /// by the same 1-based display position [LevelGraphView] already
+  /// uses for every node's own on-canvas number, via [_displayIndexOf],
+  /// so "Node 3" here means the same node as the "3" painted on the
+  /// graph — not the raw internal id.
+  String _breakdownMessageFor(GraphNode node) {
+    final tapped = _controller.tappedNodeIds;
+    final lines = <String>[];
+    if (tapped.contains(node.id)) {
+      lines.add('This node (tapped): +${node.capacity.round()}');
+    }
+    final breakdown = capacitySupplyBreakdownOf(
+      _controller.graph,
+      tapped,
+      node.id,
+    );
+    for (final contribution in breakdown) {
+      final neighborDisplay = _displayIndexOf(contribution.neighborId);
+      lines.add('Node $neighborDisplay: +${contribution.amount.round()}');
+    }
+    if (lines.isEmpty) {
+      return 'Not supplied yet — tap this node or a neighbor.';
+    }
+    return lines.join('\n');
+  }
+
+  /// 1-based position of [nodeId] in the level's node list — matches
+  /// [LevelGraphView]'s own `displayIndex + 1` label exactly, since
+  /// both read off the same `level.nodes` order.
+  int _displayIndexOf(String nodeId) =>
+      _controller.level.nodes.indexWhere((n) => n.id == nodeId) + 1;
+
   // ---- hints — same free-allotment/paid-topup MECHANISM as Classic
   // (GameplayController.useFreeHint / freeHintsRemaining, untouched);
   // only the CONTENT of the hint is Capacity-specific -----------------
@@ -534,57 +569,37 @@ class _CapacityGameplayScreenState
                     _controller.toggleNode(nodeId);
                   }
                       : (_) {},
+                  // Phase 6 legibility pass: the always-on per-edge
+                  // "+3" chips this used to pass via edgeLabelBuilder
+                  // are gone — with several tapped edges converging
+                  // on one hub, their independently-positioned
+                  // midpoint labels piled on top of each other and on
+                  // top of the node's own CAP/supply chip (see the
+                  // screenshots that prompted this). The default view
+                  // now shows only each node's aggregate supply/demand
+                  // (still always visible, still the number that
+                  // actually decides the win condition); the per-edge
+                  // breakdown moved to a long-press popup on the node
+                  // itself — see _breakdownMessageFor below. No
+                  // edgeLabelBuilder passed here at all.
                   nodeBuilder: (node, displayIndex, state, onTap) {
                     final supply = capacitySupplyOf(
                       _controller.graph,
                       _controller.tappedNodeIds,
                       node.id,
                     );
-                    return _CapacityNodeWithHints(
-                      capacity: node.capacity,
-                      supply: supply,
-                      demand: node.demand,
-                      state: state,
-                      onTap: onTap,
-                      isMostUnderSupplied: node.id == _mostUnderSuppliedNodeId,
-                      isSuggestedTap: node.id == _suggestedTapNodeId,
-                    );
-                  },
-                  edgeLabelBuilder: (edge) {
-                    final tapped = _controller.tappedNodeIds;
-                    final fromTapped = tapped.contains(edge.from);
-                    final toTapped = tapped.contains(edge.to);
-                    if (!fromTapped && !toTapped) return null;
-
-                    // capacitySupplyOf's own formula, applied to just
-                    // this one edge's contribution rather than a
-                    // node's total — see capacity_supply.dart's doc
-                    // comment for the shared 0.5x spillover constant.
-                    final fromToContribution = fromTapped
-                        ? 0.5 * _controller.graph.nodeAt(
-                      _controller.graph.indexOf(edge.from),
-                    ).capacity
-                        : null;
-                    final toFromContribution = toTapped
-                        ? 0.5 * _controller.graph.nodeAt(
-                      _controller.graph.indexOf(edge.to),
-                    ).capacity
-                        : null;
-
-                    final String text;
-                    if (fromToContribution != null && toFromContribution != null) {
-                      text = fromToContribution == toFromContribution
-                          ? '+${fromToContribution.round()} each way'
-                          : '+${fromToContribution.round()}/'
-                          '+${toFromContribution.round()}';
-                    } else {
-                      text = '+${(fromToContribution ?? toFromContribution)!.round()}';
-                    }
-                    return ConvoyLabelChip(
-                      text: text,
-                      borderColor: ConvoyColors.amberDim,
-                      style: ConvoyTypography.monoLabel
-                          .copyWith(color: ConvoyColors.amberDim),
+                    return Tooltip(
+                      message: _breakdownMessageFor(node),
+                      triggerMode: TooltipTriggerMode.longPress,
+                      child: _CapacityNodeWithHints(
+                        capacity: node.capacity,
+                        supply: supply,
+                        demand: node.demand,
+                        state: state,
+                        onTap: onTap,
+                        isMostUnderSupplied: node.id == _mostUnderSuppliedNodeId,
+                        isSuggestedTap: node.id == _suggestedTapNodeId,
+                      ),
                     );
                   },
                 ),

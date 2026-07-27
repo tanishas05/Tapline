@@ -67,9 +67,9 @@ void main() {
     }
 
     test('hub alone: satisfied per-node math matches verify() == true',
-        () {
-      checkAgreement(_starGraph(), {'hub'});
-    });
+            () {
+          checkAgreement(_starGraph(), {'hub'});
+        });
 
     test('nothing tapped: unsatisfied per-node math matches '
         'verify() == false', () {
@@ -168,6 +168,49 @@ void main() {
         'efficient by default — the fixture graph is intentionally '
         'loose, not tuned for this', () {
       expect(isCapacityClearEfficient(_starGraph(), {'hub'}), isFalse);
+    });
+  });
+
+  group('capacitySupplyBreakdownOf — Phase 6 long-press popup source', () {
+    test('empty when nothing is tapped', () {
+      final graph = _starGraph();
+      expect(capacitySupplyBreakdownOf(graph, {}, 'hub'), isEmpty);
+    });
+
+    test('itemizes each tapped neighbor at 0.5x its own capacity, '
+        'never including the node itself', () {
+      final graph = _starGraph();
+      final breakdown = capacitySupplyBreakdownOf(graph, {'leaf1', 'leaf2'}, 'hub');
+      expect(breakdown, hasLength(2));
+      expect(
+        breakdown.map((c) => c.neighborId),
+        containsAll(['leaf1', 'leaf2']),
+      );
+      for (final c in breakdown) {
+        expect(c.amount, 1.0); // 0.5 * cap(2) for either leaf
+      }
+    });
+
+    test('a non-neighbor being tapped contributes nothing, even if '
+        'it is tapped', () {
+      final graph = _starGraph();
+      // leaf1 and leaf2 aren't neighbors of each other in the star
+      // fixture, so tapping leaf2 shouldn't show up in leaf1's
+      // breakdown.
+      final breakdown = capacitySupplyBreakdownOf(graph, {'leaf2'}, 'leaf1');
+      expect(breakdown, isEmpty);
+    });
+
+    test('sums to the same total capacitySupplyOf reports, for the '
+        'cross-node portion (excluding self-tap)', () {
+      final graph = _starGraph();
+      final tapped = {'leaf1', 'leaf2'};
+      final breakdown = capacitySupplyBreakdownOf(graph, tapped, 'hub');
+      final breakdownTotal =
+      breakdown.fold(0.0, (sum, c) => sum + c.amount);
+      // hub isn't tapped itself here, so capacitySupplyOf(hub) is
+      // purely the cross-node sum this breakdown itemizes.
+      expect(breakdownTotal, capacitySupplyOf(graph, tapped, 'hub'));
     });
   });
 }

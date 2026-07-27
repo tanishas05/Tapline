@@ -32,6 +32,44 @@ double capacitySupplyOf(Graph graph, Set<String> tappedIds, String nodeId) {
   return supply;
 }
 
+/// One neighbor's contribution to a node's current supply — the
+/// itemized version of [capacitySupplyOf], for the long-press
+/// inspector popup (Phase 6 legibility pass). [neighborId] is always
+/// a tapped neighbor; self-tap isn't represented here since the
+/// caller already knows whether [nodeId] itself is tapped and shows
+/// that separately (it uses the full `cap(v)`, not the 0.5x
+/// cross-node rate, so folding it into this list would misrepresent
+/// it as "just another neighbor").
+class CapacityContribution {
+  const CapacityContribution({required this.neighborId, required this.amount});
+
+  final String neighborId;
+  final double amount;
+}
+
+/// Same `0.5 * cap(u)` formula [capacitySupplyOf] sums silently —
+/// itemized per tapped neighbor `u` of [nodeId] instead of collapsed
+/// into one total, so a popup can show "where did this number come
+/// from" without the always-on floating labels that used to render
+/// one per edge regardless of how many converged on a single node.
+List<CapacityContribution> capacitySupplyBreakdownOf(
+    Graph graph,
+    Set<String> tappedIds,
+    String nodeId,
+    ) {
+  final v = graph.indexOf(nodeId);
+  final contributions = <CapacityContribution>[];
+  for (final u in graph.neighbors(v)) {
+    final uId = graph.idAt(u);
+    if (tappedIds.contains(uId)) {
+      contributions.add(
+        CapacityContribution(neighborId: uId, amount: 0.5 * graph.nodeAt(u).capacity),
+      );
+    }
+  }
+  return contributions;
+}
+
 /// Total over-supply, as a fraction of total demand, for a completed
 /// [tappedIds] set — Phase 6's "NO SPILLAGE" achievement.
 ///
@@ -55,10 +93,10 @@ double capacitySupplyOf(Graph graph, Set<String> tappedIds, String nodeId) {
 /// `false` rather than dividing by zero — nothing to be "efficient"
 /// about on a level with no demand to speak of.
 bool isCapacityClearEfficient(
-  Graph graph,
-  Set<String> tappedIds, {
-  double threshold = 0.10,
-}) {
+    Graph graph,
+    Set<String> tappedIds, {
+      double threshold = 0.10,
+    }) {
   var totalDemand = 0.0;
   var totalSurplus = 0.0;
   for (var v = 0; v < graph.nodeCount; v++) {
