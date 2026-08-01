@@ -202,18 +202,24 @@ class _DemoScreenState extends State<DemoScreen>
 class _ClassicDemoTab extends ConsumerWidget {
   const _ClassicDemoTab();
 
+  // The PDF guide's exact worked example: one tank in the middle,
+  // connected to four separate outer tanks; the outer tanks are NOT
+  // connected to each other, only to the middle one.
   static final _illustration = _illustrationLevel(
     id: 'demo_classic_illustration',
     mode: GameMode.classic,
     nodes: const [
-      GraphNode(id: 'n1', position: GraphPoint(0, 120)),
-      GraphNode(id: 'n2', position: GraphPoint(160, 120)),
-      GraphNode(id: 'n3', position: GraphPoint(320, 120)),
-      GraphNode(id: 'n4', position: GraphPoint(320, 280)),
+      GraphNode(id: 'nMiddle', position: GraphPoint(160, 180)),
+      GraphNode(id: 'nTop', position: GraphPoint(160, 20)),
+      GraphNode(id: 'nRight', position: GraphPoint(320, 180)),
+      GraphNode(id: 'nBottom', position: GraphPoint(160, 340)),
+      GraphNode(id: 'nLeft', position: GraphPoint(0, 180)),
     ],
     edges: const [
-      GraphEdge('n1', 'n2'),
-      GraphEdge('n2', 'n3'),
+      GraphEdge('nMiddle', 'nTop'),
+      GraphEdge('nMiddle', 'nRight'),
+      GraphEdge('nMiddle', 'nBottom'),
+      GraphEdge('nMiddle', 'nLeft'),
     ],
   );
 
@@ -222,27 +228,96 @@ class _ClassicDemoTab extends ConsumerWidget {
 
   static final _steps = [
     _ConceptStep(
-      title: 'Tanks & pipes',
-      body: 'Every mode uses a network like this one, tanks connected by '
-          'pipes. Right now nothing is supplied.',
+      title: 'Taps, stars & fails',
+      body: 'Tap a point to activate it; tap the same point again to undo '
+          'that tap, as long as you\'re still within the tap limit. Every '
+          'level shows an OPTIMAL number of taps at the top: finish using '
+          'exactly that many for 3 stars, or one more than that for 2 '
+          'stars. An attempt fails if you go more than one tap over '
+          'optimal without finishing, or if the countdown timer runs out '
+          'first. These rules are the same in every mode; only what '
+          'counts as "finished" changes from here.',
       illustration: _illustration,
       tappedIds: const {},
     ),
     _ConceptStep(
-      title: 'Tap to supply',
-      body: 'Tap a tank to supply it. Supply spreads to every tank it\'s '
-          'directly connected to, but no further than that.',
+      title: 'The idea',
+      body: 'Picture every point on the board as a tank, joined to some '
+          'other tanks by pipes. Tapping a tank turns its supply ON. The '
+          'moment a tank\'s supply is on, that supply automatically flows '
+          'out through every pipe connected to it. So a single tap '
+          'supplies TWO things: the tank you tapped AND every tank '
+          'directly connected to it by one pipe. A level is finished once '
+          'every tank on the board has supply, either because you tapped '
+          'it or because it sits directly next to one you did tap. Your '
+          'goal is to cover the whole board using as few taps as '
+          'possible.',
       illustration: _illustration,
-      tappedIds: const {'n1'},
+      tappedIds: const {},
     ),
     _ConceptStep(
-      title: 'Fewest taps wins',
-      body: 'A tank two pipes away from a tap or not connected at all,'
-          'stays unsupplied unless it gets a tap of its own. Goal: supply '
-          'every tank using the fewest taps possible. Here, two taps cover '
-          'all four.',
+      title: 'Worked example: tap the middle',
+      body: 'Imagine five tanks arranged like a plus sign: one tank in the '
+          'middle, connected to four separate tanks around it (the four '
+          'outer tanks are not connected to each other, only to the '
+          'middle one), just like the board below. Tap the MIDDLE tank: '
+          'supply reaches the middle tank itself, plus all four outer '
+          'tanks (each is directly connected to it). All five tanks are '
+          'supplied in just one tap.',
       illustration: _illustration,
-      tappedIds: const {'n2', 'n4'},
+      tappedIds: const {'nMiddle'},
+    ),
+    _ConceptStep(
+      title: 'Worked example: tap an outer tank',
+      body: 'Tap an OUTER tank instead: supply reaches that outer tank and '
+          'the middle tank only (its one connection). The other three '
+          'outer tanks are still unsupplied; you would need at least one '
+          'more tap to finish, and probably several.',
+      illustration: _illustration,
+      tappedIds: const {'nTop'},
+    ),
+    _ConceptStep(
+      title: 'The lesson',
+      body: 'A well-connected tank (one touching many pipes) almost '
+          'always covers more of the board than a tank sitting at a dead '
+          'end. Before tapping, look for the most-connected points on the '
+          'board; they are usually the strongest first moves.',
+      illustration: _illustration,
+      tappedIds: const {'nMiddle'},
+    ),
+    _ConceptStep(
+      title: 'Playing a level',
+      body: '1. Open Classic from the home screen and choose an unlocked '
+          'level.\n'
+          '2. Look at the whole board before tapping anything; note which '
+          'tanks look well-connected and which sit off on their own.\n'
+          '3. Check the OPTIMAL number at the top of the screen. That is '
+          'your target tap count for 3 stars.\n'
+          '4. Tap a tank. It, and every tank directly next to it, will '
+          'visually change to show they now have supply.\n'
+          '5. Look for tanks that still show no supply, and tap the '
+          'most-connected among THOSE next, not just any remaining tank.\n'
+          '6. Keep going until every tank on the board shows supply. The '
+          'result (3 star / 2 star / fail) is worked out automatically '
+          'the moment you finish.\n'
+          '7. If you tap a tank by mistake, tap it again to undo it, as '
+          'long as you are still within the tap limit.',
+      illustration: _illustration,
+      tappedIds: const {'nMiddle'},
+    ),
+    _ConceptStep(
+      title: 'Common mistakes',
+      body: '\u2022 Tapping tanks one at a time in the order they catch '
+          'your eye, instead of scanning the whole board first for the '
+          'best-connected ones.\n'
+          '\u2022 Missing a tank tucked in a corner of the board; look at '
+          'every part of the network, not just the middle, before '
+          'deciding you are done.\n'
+          '\u2022 Tapping a tank that\'s already fully covered by a '
+          'neighbour\'s supply, instead of hunting for the parts of the '
+          'board that are still unsupplied.',
+      illustration: _illustration,
+      tappedIds: const {'nMiddle'},
     ),
   ];
 
@@ -265,7 +340,7 @@ class _ClassicDemoTab extends ConsumerWidget {
         final labels = _displayIndices(level, newlySatisfied);
         final plural = labels.length == 1 ? '' : 's';
         return 'Tap node $here. It supplies itself and reaches '
-            '${labels.length} more node$plural through its pipes,'
+            '${labels.length} more node$plural through its pipes: '
             'node$plural ${labels.join(', ')}.';
       },
       explainMistake: (graph, level, tapped, wrongNodeId) {
@@ -274,7 +349,7 @@ class _ClassicDemoTab extends ConsumerWidget {
             _classicNodeStates(graph, level, tapped)[wrongNodeId] ==
                 NodeVisualState.supplied;
         if (alreadySupplied) {
-          return 'Node $here is already supplied by an earlier tap,'
+          return 'Node $here is already supplied by an earlier tap, so '
               'tapping it again would waste a tap. A common Classic '
               'mistake: retapping tanks that are already covered instead '
               'of the ones still empty.';
@@ -296,26 +371,27 @@ class _CapacityDemoTab extends ConsumerWidget {
     mode: GameMode.capacity,
     nodes: const [
       GraphNode(
-        id: 'n1',
+        id: 'nA',
         position: GraphPoint(0, 120),
-        capacity: 4,
-        demand: 3,
+        capacity: 10,
+        demand: 5,
       ),
       GraphNode(
-        id: 'n2',
+        id: 'nB',
         position: GraphPoint(180, 120),
-        capacity: 1,
-        demand: 2,
+        capacity: 4,
+        demand: 8,
       ),
       GraphNode(
-        id: 'n3',
-        position: GraphPoint(320, 260),
-        capacity: 2,
-        demand: 2,
+        id: 'nC',
+        position: GraphPoint(360, 120),
+        capacity: 6,
+        demand: 3,
       ),
     ],
     edges: const [
-      GraphEdge('n1', 'n2'),
+      GraphEdge('nA', 'nB'),
+      GraphEdge('nB', 'nC'),
     ],
   );
 
@@ -324,27 +400,102 @@ class _CapacityDemoTab extends ConsumerWidget {
 
   static final _steps = [
     _ConceptStep(
-      title: 'Capacity & demand',
-      body: 'Tanks here have a capacity and a demand. Supply must meet '
-          'demand, just existing on the network isn\'t enough.',
+      title: 'Taps, stars & fails',
+      body: 'Tap a point to activate it; tap the same point again to undo '
+          'that tap, as long as you\'re still within the tap limit. Every '
+          'level shows an OPTIMAL number of taps at the top: finish using '
+          'exactly that many for 3 stars, or one more than that for 2 '
+          'stars. An attempt fails if you go more than one tap over '
+          'optimal without finishing, or if the countdown timer runs out '
+          'first. These rules are the same in every mode; only what '
+          'counts as "finished" changes from here.',
       illustration: _illustration,
       tappedIds: const {},
     ),
     _ConceptStep(
-      title: 'Spillover',
-      body: 'Tap a tank: it gets its full capacity, and sends half of '
-          'that to every tank it\'s directly connected to. That spillover '
-          'alone can be enough to cover a neighbor\'s demand.',
+      title: 'The idea',
+      body: 'Capacity mode uses the same tank-and-pipe board as Classic, '
+          'but "supplied" is no longer just on or off. Every tank now '
+          'carries two numbers of its own: DEMAND, how much supply that '
+          'tank needs before it counts as satisfied, and CAP (short for '
+          'capacity), how much supply that tank is able to send out if '
+          'you tap it. Here is the twist that makes this mode different '
+          'from Classic: when you tap a tank, it does NOT send its full '
+          'capacity to its neighbours. The tank you tapped keeps its full '
+          'CAP for itself. Every tank directly next to it receives only '
+          'HALF of that CAP; this halving is called spillover, like water '
+          'splashing over the side into the next pipe rather than being '
+          'fully delivered. A tank counts as satisfied once its current '
+          'supply is at least equal to its demand. Because of spillover, '
+          'a tank can become fully satisfied WITHOUT you ever tapping it '
+          'directly, if enough of its neighbours are tapped, their '
+          'combined half-shares can be enough on their own. A level is '
+          'finished once every tank\'s demand is met, by whatever '
+          'combination of direct taps and spillover got it there.',
       illustration: _illustration,
-      tappedIds: const {'n1'},
+      tappedIds: const {},
     ),
     _ConceptStep(
-      title: 'Fewest taps wins',
-      body: 'If spillover isn\'t enough, or a tank isn\'t connected to '
-          'anything tapped, it needs a tap of its own. Goal: meet every '
-          'tank\'s demand with the fewest taps possible.',
+      title: 'Worked example: tap tank A',
+      body: 'Picture three tanks in a row: A is connected to B, and B is '
+          'connected to C. A and C are NOT directly connected to each '
+          'other. Tank A: CAP 10, DEMAND 5. Tank B: CAP 4, DEMAND 8. Tank '
+          'C: CAP 6, DEMAND 3. Now tap ONLY tank A. Tank A is tapped '
+          'directly, so it gets its own full CAP: current supply = 10. '
+          'Its demand was only 5, satisfied, with plenty to spare. Tank B '
+          'is A\'s neighbour, so it receives HALF of A\'s capacity: '
+          '0.5 \u00d7 10 = 5. Its demand is 8, NOT satisfied yet; it\'s '
+          'short by 3. Tank C is not connected to A at all, so it gets '
+          'nothing from this tap: current supply = 0. Its demand is 3, '
+          'NOT satisfied. One tap clearly isn\'t enough.',
       illustration: _illustration,
-      tappedIds: const {'n1', 'n3'},
+      tappedIds: const {'nA'},
+    ),
+    _ConceptStep(
+      title: 'Worked example: tap A and C',
+      body: 'Now ALSO tap tank C. Tank A stays at 10 (unchanged, not '
+          'connected to C), still meeting its demand of 5. Tank C is '
+          'tapped directly, so its supply becomes its own full CAP of 6, '
+          'meeting its demand of 3. Tank B\'s supply is now 8: 5 from A\'s '
+          'spillover plus 3 from C\'s spillover (half of C\'s 6), exactly '
+          'matching its demand of 8. With A and C tapped, all three tanks '
+          'are now satisfied, using only 2 taps, and tank B, the one with '
+          'the HIGHEST demand on the whole board, was never tapped '
+          'directly at all. It reached full supply purely through '
+          'spillover from both of its neighbours at once.',
+      illustration: _illustration,
+      tappedIds: const {'nA', 'nC'},
+    ),
+    _ConceptStep(
+      title: 'The core trick',
+      body: 'Sometimes the smartest tap is not on the neediest tank '
+          'itself, but on the tanks AROUND it, especially when a needy '
+          'tank has two or more neighbours whose combined half-shares can '
+          'cover it between them.',
+      illustration: _illustration,
+      tappedIds: const {'nA', 'nC'},
+    ),
+    _ConceptStep(
+      title: 'Playing a level',
+      body: '1. Before tapping anything, look at every tank\'s CAP number '
+          'and every tank\'s DEMAND number. This tells you what each tank '
+          'could contribute (if tapped or as a neighbour) and what each '
+          'tank needs.\n'
+          '2. Find the tanks with the highest demand first; work out '
+          'whether one direct tap on that tank alone would cover it, or '
+          'whether it will need help from its neighbours too.\n'
+          '3. When choosing where to tap, prefer a tank that helps itself '
+          'AND meaningfully helps its neighbours, over a tank that only '
+          'helps itself.\n'
+          '4. Watch each tank\'s ring fill live as you tap. A ring that\'s '
+          'still short means that tank needs more supply from somewhere: '
+          'either a direct tap on it, or a tap on one more of its '
+          'neighbours.\n'
+          '5. If a number surprises you, press and hold that tank to see '
+          'exactly where its current supply is coming from.\n'
+          '6. Stop once every tank\'s ring shows full.',
+      illustration: _illustration,
+      tappedIds: const {'nA', 'nC'},
     ),
   ];
 
@@ -375,14 +526,14 @@ class _CapacityDemoTab extends ConsumerWidget {
             _capacityNodeStates(graph, level, tapped)[wrongNodeId] ==
                 NodeVisualState.supplied;
         if (alreadyMet) {
-          return 'Node $here already has its demand met from spillover, '
+          return 'Node $here already has its demand met from spillover, so '
               'tapping it directly would waste a tap. A common Capacity '
               'mistake: tapping tanks that don\'t need it instead of '
               'ones still short.';
         }
         return 'Node $here isn\'t the most efficient tap here. A common '
             'Capacity mistake is forgetting spillover is only HALF a '
-            'tapped tank\'s capacity, distant tanks usually still need '
+            'tapped tank\'s capacity; distant tanks usually still need '
             'their own tap.';
       },
     );
@@ -396,14 +547,15 @@ class _SignalDemoTab extends ConsumerWidget {
     id: 'demo_signal_illustration',
     mode: GameMode.signal,
     nodes: const [
-      GraphNode(id: 'n1', position: GraphPoint(0, 120)),
-      GraphNode(id: 'n2', position: GraphPoint(160, 120)),
-      GraphNode(id: 'n3', position: GraphPoint(320, 120)),
-      GraphNode(id: 'n4', position: GraphPoint(320, 280)),
+      GraphNode(id: 'nTower1', position: GraphPoint(0, 120)),
+      GraphNode(id: 'nTower2', position: GraphPoint(160, 120)),
+      GraphNode(id: 'nTower3', position: GraphPoint(320, 120)),
+      GraphNode(id: 'nTower4', position: GraphPoint(480, 120)),
     ],
     edges: const [
-      GraphEdge('n1', 'n2'),
-      GraphEdge('n2', 'n3'),
+      GraphEdge('nTower1', 'nTower2'),
+      GraphEdge('nTower2', 'nTower3'),
+      GraphEdge('nTower3', 'nTower4'),
     ],
   );
 
@@ -412,26 +564,90 @@ class _SignalDemoTab extends ConsumerWidget {
 
   static final _steps = [
     _ConceptStep(
-      title: 'One-way pipes',
-      body: 'Signal pipes only run one direction, the arrow matters. '
-          'Nothing is under control yet.',
+      title: 'Taps, stars & fails',
+      body: 'Tap a point to activate it; tap the same point again to undo '
+          'that tap, as long as you\'re still within the tap limit. Every '
+          'level shows an OPTIMAL number of taps at the top: finish using '
+          'exactly that many for 3 stars, or one more than that for 2 '
+          'stars. An attempt fails if you go more than one tap over '
+          'optimal without finishing, or if the countdown timer runs out '
+          'first. These rules are the same in every mode; only what '
+          'counts as "finished" changes from here.',
       illustration: _illustration,
       tappedIds: const {},
     ),
     _ConceptStep(
-      title: 'Control spreads forward',
-      body: 'Tap a tank to broadcast control forward along the arrows, '
-          'through as many hops as the pipes allow, not just one.',
+      title: 'The idea',
+      body: 'Signal mode uses the same style of board, but with an '
+          'important difference: every pipe between them is ONE-WAY, '
+          'shown as an arrow. An arrow only ever carries a signal in the '
+          'direction it points, never backwards. Tapping a tower makes it '
+          'a DRIVER, a starting broadcast point. Once a tower is a '
+          'driver, its signal spreads forward: first to every tower its '
+          'own outgoing arrows point to, and then onward from THOSE '
+          'towers along THEIR outgoing arrows, and so on, hopping forward '
+          'through the whole network however many steps it takes. A '
+          'tower counts as controlled the moment a signal from any '
+          'driver can reach it by following arrows forward, no matter '
+          'how many other towers it has to pass through on the way. A '
+          'level is finished once every tower on the board is '
+          'controlled. Your goal, as always, is to reach that using as '
+          'few driver taps as possible. The one rule to hold onto above '
+          'all others: signal only ever travels FORWARD along an arrow. '
+          'A tower can never help control a tower that its arrows point '
+          'away from.',
       illustration: _illustration,
-      tappedIds: const {'n1'},
+      tappedIds: const {},
     ),
     _ConceptStep(
-      title: 'Driver nodes',
-      body: 'A tank nothing else points to can never be reached, it '
-          'must be tapped directly. These are called driver nodes. Goal: '
-          'control the whole grid with the fewest driver taps possible.',
+      title: 'Worked example: tap Tower 1',
+      body: 'Picture four towers in a straight line, with every arrow '
+          'pointing the same way: Tower 1 \u2192 Tower 2 \u2192 Tower 3 '
+          '\u2192 Tower 4. Tap TOWER 1: its signal follows the arrow to '
+          'tower 2. Tower 2\'s own outgoing arrow then carries it on to '
+          'tower 3, and tower 3\'s arrow carries it on to tower 4. One '
+          'single tap controls all four towers, because the signal can '
+          'hop all the way down the chain.',
       illustration: _illustration,
-      tappedIds: const {'n1', 'n4'},
+      tappedIds: const {'nTower1'},
+    ),
+    _ConceptStep(
+      title: 'Worked example: tap Tower 3 instead',
+      body: 'Tap TOWER 3 instead: the signal can only go forward, so it '
+          'reaches tower 4, but towers 1 and 2 sit "upstream" of tower 3, '
+          'and there is no arrow leading backward into them. They stay '
+          'uncontrolled no matter what happens at tower 3. You would '
+          'need a separate tap on tower 1 (or 2) to ever reach them.',
+      illustration: _illustration,
+      tappedIds: const {'nTower3'},
+    ),
+    _ConceptStep(
+      title: 'The lesson',
+      body: 'Always look for the tower at the very START of a chain, the '
+          'one with arrows only leading OUT of it, none leading in, '
+          'because tapping it is the only way to light up everything '
+          'that follows from it.',
+      illustration: _illustration,
+      tappedIds: const {'nTower1'},
+    ),
+    _ConceptStep(
+      title: 'Playing a level',
+      body: '1. Before tapping anything, trace the arrows across the '
+          'whole board. Find towers where every arrow touching them '
+          'points OUT and none point IN; these chain-starts are usually '
+          'your strongest first taps.\n'
+          '2. Tap a likely chain-start. Watch which towers light up as '
+          'controlled, following the arrows forward from it.\n'
+          '3. If some towers are still not lit, check whether they '
+          'belong to a separate chain (needs its own driver tap) or sit '
+          'inside a closed loop with nothing feeding in from outside '
+          '(also needs one driver tap, placed inside the loop).\n'
+          '4. Keep tapping chain-starts (or one tower inside each '
+          'stubborn loop) until every tower on the board is controlled.\n'
+          '5. Check DRIVERS used against the OPTIMAL number at the top '
+          'of the screen.',
+      illustration: _illustration,
+      tappedIds: const {'nTower1'},
     ),
   ];
 
@@ -454,7 +670,7 @@ class _SignalDemoTab extends ConsumerWidget {
         final labels = _displayIndices(level, newlySatisfied);
         final plural = labels.length == 1 ? '' : 's';
         return 'Tap node $here. Signal now reaches node$plural '
-            '${labels.join(', ')}, no other driver node in this '
+            '${labels.join(', ')}; no other driver node in this '
             'solution can reach ${labels.length == 1 ? 'it' : 'them'}.';
       },
       explainMistake: (graph, level, tapped, wrongNodeId) {
@@ -464,12 +680,12 @@ class _SignalDemoTab extends ConsumerWidget {
                 NodeVisualState.supplied;
         if (alreadyReached) {
           return 'Node $here is already under control from an earlier '
-              'tap, a common Signal mistake is re-tapping a reached '
+              'tap. A common Signal mistake is re-tapping a reached '
               'tank instead of finding the next driver node.';
         }
         return 'Node $here isn\'t one of this level\'s minimum driver '
             'nodes. A common Signal mistake is tapping whatever LOOKS '
-            'busiest, what actually matters is whether anything points '
+            'busiest: what actually matters is whether anything points '
             'TO it. Nodes nothing points to must be driven directly.';
       },
     );
@@ -596,8 +812,8 @@ Map<String, PipeState> _signalPipeStates(
 }
 
 /// One page of the instructional wizard: a short idea plus a static,
-/// hand-picked illustration of it. Never interactive, onNodeTap is a
-/// no-op, this is purely "look at this," the practice page at the
+/// hand-picked illustration of it. Never interactive — onNodeTap is a
+/// no-op — this is purely "look at this," the practice page at the
 /// end of the wizard is where the player actually taps anything.
 class _ConceptStep {
   const _ConceptStep({
@@ -1067,7 +1283,7 @@ class _PlayAlongCardState extends State<_PlayAlongCard> {
   void _showCorrectFeedback(String nodeId, Set<String> newlySatisfied) {
     final here = _displayIndexOf(_controller.level, nodeId);
     final message = newlySatisfied.isEmpty
-        ? 'Correct! node $here tapped.'
+        ? 'Correct. Node $here tapped.'
         : 'Correct! Node $here is now supplied, and its reach covers '
         'node${newlySatisfied.length == 1 ? '' : 's'} '
         '${_displayIndices(_controller.level, newlySatisfied).join(', ')} '
@@ -1267,10 +1483,10 @@ class _PlayAlongCardState extends State<_PlayAlongCard> {
             ),
             child: Text(
               outcome == GameplayOutcome.threeStar
-                  ? 'Solved with the fewest possible taps that\'s '
-                  'exactly what success looks like here. 3-star clear!'
+                  ? 'Solved with the fewest possible taps, exactly '
+                  'what success looks like here. 3-star clear!'
                   : outcome == GameplayOutcome.twoStar
-                  ? 'Solved, one tap over optimal, a 2-star clear.'
+                  ? 'Solved, one tap over optimal: a 2-star clear.'
                   : 'Out of taps. Hit RESET and try a different set of nodes.',
               style: ConvoyTypography.caption.copyWith(
                 color: isFail
